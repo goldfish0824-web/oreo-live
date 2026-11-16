@@ -7,27 +7,30 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
 <style>
-  .top { position: sticky; top: 0; z-index: 10; background: rgba(252,252,251,0.96); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding: 10px 16px; }
-  .top .brand { font-weight: 800; color: var(--accent); }
-  .top .brand small { color: var(--ink-3); font-weight: 600; margin-left: 6px; }
-  .stats { display: flex; gap: 16px; font-size: 14px; color: var(--ink-2); }
-  .stats b { color: var(--ink); font-family: var(--font-en); font-size: 16px; }
-  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .top { position: sticky; top: 0; z-index: 10; padding: 10px 16px 12px; box-shadow: 0 6px 20px -12px rgba(21,23,30,0.6); }
+  .top .brand { font-size: 18px; }
+  .login .brand { font-size: 22px; }
+  .login .brand small { background: var(--surface-2); color: var(--ink-2); }
+  .stats { display: flex; gap: 16px; font-size: 14px; color: rgba(251,247,238,0.62); }
+  .stats b { color: var(--cream); font-family: var(--font-en); font-size: 17px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .filters .seg button { padding: 6px 14px; font-size: 14px; }
   main { max-width: 980px; margin: 0 auto; padding: 16px 14px 60px; }
-  details.guide { background: var(--accent-soft); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 14px; }
-  details.guide summary { font-weight: 800; cursor: pointer; color: var(--accent); }
+  details.guide { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--pop); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 18px; margin-bottom: 16px; }
+  details.guide summary { font-weight: 800; cursor: pointer; color: var(--ink); }
   details.guide ol { margin: 8px 0 4px; padding-left: 1.3em; }
   .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
-  .sub { display: flex; flex-direction: column; gap: 10px; border-left: 5px solid var(--line); }
-  .sub.yes { border-left-color: var(--yes); }
-  .sub.no { border-left-color: var(--no); }
+  .sub { display: flex; flex-direction: column; gap: 10px; border-top: 6px solid var(--line); transition: transform 0.15s, box-shadow 0.15s; }
+  .sub:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .sub.yes { border-top-color: var(--yes); }
+  .sub.no { border-top-color: var(--no); }
   .sub .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 14px; }
   .sub .who { font-weight: 800; }
   .oreo-lines { margin: 0; display: grid; grid-template-columns: 28px 1fr; gap: 4px 8px; font-family: var(--font-en); font-size: 15.5px; line-height: 1.5; }
-  .oreo-lines dt { font-weight: 800; color: var(--accent); }
+  .oreo-lines dt { width: 24px; height: 24px; border-radius: 50%; background: var(--cookie); color: var(--cream); font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
   .oreo-lines dd { margin: 0; }
   .grades-mini { display: flex; gap: 6px; }
-  .gm { font-size: 13px; padding: 2px 8px; border-radius: 8px; background: var(--surface-2); font-weight: 700; }
+  .gm { font-size: 13px; padding: 3px 9px; border-radius: 8px; background: var(--surface-2); font-weight: 800; }
   .gm.g-A { background: #e3f3ea; color: #1f7a4d; } .gm.g-B { background: #e6ecf4; color: #1f3a5f; } .gm.g-C { background: #f9eeda; color: #8a5a00; } .gm.g-D { background: #fbe9e7; color: #b3261e; }
   .delta { font-size: 13px; color: var(--good); font-weight: 700; }
   details.fb { border-top: 1px solid var(--surface-2); padding-top: 8px; font-size: 14.5px; }
@@ -37,11 +40,12 @@
   details.fb ul { padding-left: 1.1em; }
   del { color: var(--fix); background: var(--fix-soft); padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   ins { color: var(--good); background: var(--good-soft); text-decoration: none; font-weight: 700; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
-  .star { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-weight: 700; min-height: 38px; }
-  .star.on { background: #fff4cc; border-color: #e8c55a; color: #6b5200; }
+  .star { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 16px; font-weight: 800; min-height: 40px; transition: transform 0.1s, background 0.15s; }
+  .star:active { transform: scale(0.95); }
+  .star.on { background: var(--pop); border-color: var(--pop); color: var(--cookie); box-shadow: 0 8px 18px -10px rgba(245,184,61,0.95); }
   .foot { display: flex; align-items: center; gap: 8px; }
   .empty { text-align: center; color: var(--ink-3); padding: 50px 0; }
-  .login { max-width: 440px; margin: 60px auto; }
+  .login { max-width: 460px; margin: 60px auto; padding: 28px; box-shadow: var(--shadow-lg); }
   @media (max-width: 480px) { .list { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -49,7 +53,7 @@
 <div id="demoBanner" class="demo-banner hidden">デモモード：同じブラウザのモニター／生徒画面のデータを表示しています</div>
 
 <div id="login" class="login card hidden" style="display:flex;flex-direction:column;gap:12px">
-  <div style="font-weight:800;color:var(--accent)">OREO Live — 参観者用ページ</div>
+  <div class="brand"><span class="logo dark"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>参観者用ページ</small></div>
   <div><label class="field-label" for="inS">セッションコード</label><input id="inS" type="text"></div>
   <div><label class="field-label" for="inK">参観者キー</label><input id="inK" type="password"></div>
   <button class="btn btn-primary" id="btnGo">表示する</button>
@@ -58,7 +62,7 @@
 <div id="app" class="hidden">
   <header class="top">
     <div class="row">
-      <div class="brand">OREO Live<small>参観者用</small></div>
+      <div class="brand"><span class="logo"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>参観者用</small></div>
       <div class="spacer"></div>
       <div class="stats"><span>投票 <b id="sVotes">0</b></span><span>提出 <b id="sSubs">0</b>人</span><span>再提出 <b id="sRe">0</b></span></div>
     </div>
