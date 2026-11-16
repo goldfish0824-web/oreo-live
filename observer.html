@@ -29,6 +29,8 @@
   .oreo-lines { margin: 0; display: grid; grid-template-columns: 28px 1fr; gap: 4px 8px; font-family: var(--font-en); font-size: 15.5px; line-height: 1.5; }
   .oreo-lines dt { width: 24px; height: 24px; border-radius: 50%; background: var(--cookie); color: var(--cream); font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
   .oreo-lines dd { margin: 0; }
+  .pre-line { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; font-size: 14px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .pre-line b { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
   .grades-mini { display: flex; gap: 6px; }
   .gm { font-size: 13px; padding: 3px 9px; border-radius: 8px; background: var(--surface-2); font-weight: 800; }
   .gm.g-A { background: #e3f3ea; color: #1f7a4d; } .gm.g-B { background: #e6ecf4; color: #1f3a5f; } .gm.g-C { background: #f9eeda; color: #8a5a00; } .gm.g-D { background: #fbe9e7; color: #b3261e; }
@@ -64,7 +66,7 @@
     <div class="row">
       <div class="brand"><span class="logo"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>参観者用</small></div>
       <div class="spacer"></div>
-      <div class="stats"><span>投票 <b id="sVotes">0</b></span><span>提出 <b id="sSubs">0</b>人</span><span>再提出 <b id="sRe">0</b></span></div>
+      <div class="stats"><span class="hidden" id="sPreWrap">単元前 <b id="sPre">0</b></span><span>投票 <b id="sVotes">0</b></span><span>提出 <b id="sSubs">0</b>人</span><span>再提出 <b id="sRe">0</b></span></div>
     </div>
     <div class="filters">
       <div class="seg" id="fStance">
@@ -84,6 +86,7 @@
         <li>Example に、資料の数字やディベートで出た具体例が使われているか。</li>
         <li>AI の指摘のうち、生徒は何を選んで直しているか（再提出の前後）。</li>
         <li>AI の評価と、先生ご自身の評価は一致するか。</li>
+        <li id="guidePre" class="hidden">単元の前に書いた理由（各カードの「単元の前」）と比べて、理由の中身がどう変わったか。</li>
       </ol>
       <p class="small muted" style="margin:4px 0 0">説得力があると感じた意見に ⭐ を付けてください（何件でも可）。授業の終末で「AI が選んだ意見」と並べて紹介します。生徒には、誰が ⭐ を付けたかは表示されません。</p>
     </details>
@@ -117,7 +120,9 @@
   const params = new URLSearchParams(location.search);
   const S = { s: (params.get("s") || "").toUpperCase(), key: params.get("k") || "", name: store.get("oreolive_observer_name") || "" };
   if (API.demo && !S.key) S.key = "demo";
-  const D = { since: 0, subs: new Map(), votes: [], starCounts: {}, myStars: new Set() };
+  const D = { since: 0, subs: new Map(), votes: [], prevotes: new Map(), starCounts: {}, myStars: new Set() };
+  let T = window.OREO_TOPIC(); // いまのセッションのトピック（理由タグの表示名に使う）
+  const ST = { yes: "Yes", no: "No", unsure: "Not sure" };
   let filter = "all", sort = "new";
   const openFb = new Set();
 
@@ -141,6 +146,8 @@
     try {
       const res = await API.live(S.s, S.key, D.since, S.name);
       D.votes = res.votes || [];
+      D.prevotes = new Map((res.prevotes || []).map((p) => [p.student, p]));
+      T = window.OREO_TOPIC(res.topic);
       (res.subs || []).forEach((r) => { D.subs.set(r.id, r); D.since = Math.max(D.since, r.id); });
       D.starCounts = res.starCounts || {};
       D.myStars = new Set(res.myStars || []);
@@ -161,6 +168,9 @@
   function render() {
     const groups = [...byStudent().values()];
     $("#sVotes").textContent = D.votes.length;
+    $("#sPre").textContent = D.prevotes.size;
+    $("#sPreWrap").classList.toggle("hidden", !D.prevotes.size);
+    $("#guidePre").classList.toggle("hidden", !D.prevotes.size);
     $("#sSubs").textContent = groups.length;
     $("#sRe").textContent = [...D.subs.values()].filter((r) => r.version > 1).length;
     let items = groups.map((list) => ({ list, cur: list[list.length - 1] }));
@@ -184,12 +194,14 @@
       const ch = ["logic", "grammar", "vocab"].filter((k) => RANK[cur[k]] !== RANK[prev[k]]).map((k) => `${GL[k]} ${prev[k]}→${cur[k]}`);
       delta = `<span class="delta">v${prev.version}→v${cur.version}${ch.length ? "：" + esc(ch.join("、")) : "：評価は同じ"}</span>`;
     }
-    const tag = (C.REASON_LABELS[cur.reason_tag] || ["", ""])[1];
+    const tag = (T.REASON_LABELS[cur.reason_tag] || ["", ""])[1];
+    const pre = D.prevotes.get(cur.student);
     return `<article class="card sub ${esc(cur.stance)}">
       <div class="meta"><span class="who">${cur.grp ? "G" + esc(cur.grp) + " · " : ""}${esc(cur.student.replace("-", "組"))}番</span>
         <span class="badge ${esc(cur.stance)}">${cur.stance === "yes" ? "Yes" : "No"}</span>
         <span class="badge">${esc(cur.words)} words</span>${tag ? `<span class="badge">${esc(tag)}</span>` : ""}
         ${cur.flag && cur.flag !== "ok" ? `<span class="badge" style="background:#fff6db;color:#6b5200">要確認</span>` : ""}</div>
+      ${pre ? `<div class="pre-line"><b>単元の前</b><span class="badge ${esc(pre.stance)}">${ST[pre.stance] || ""}</span><span>${esc(pre.reason)}</span></div>` : ""}
       <dl class="oreo-lines"><dt>O</dt><dd>${esc(cur.opinion)}</dd><dt>R</dt><dd>${esc(cur.reason)}</dd><dt>E</dt><dd>${esc(cur.example)}</dd><dt>O</dt><dd>${esc(cur.conclusion)}</dd></dl>
       <div class="row" style="gap:8px"><div class="grades-mini">${g("logic")}${g("grammar")}${g("vocab")}</div>${delta}</div>
       <details class="fb" data-id="${cur.id}" ${openFb.has(String(cur.id)) ? "open" : ""}><summary>AI のフィードバックを見る</summary>

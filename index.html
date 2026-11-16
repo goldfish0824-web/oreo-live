@@ -19,6 +19,7 @@
   .topic-ja { color: var(--ink-2); margin: 6px 0 0; font-size: 15px; }
   .stack > * + * { margin-top: 14px; }
   #btnStart { width: 100%; min-height: 54px; font-size: 17px; }
+  textarea.ja { font-family: var(--font); font-size: 16px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
   /* 投票 */
@@ -136,11 +137,34 @@
       <p class="topic-ja" data-topic-ja></p>
     </div>
     <div class="vote-btns" id="voteBtns">
-      <button data-v="yes">Yes<span>受け入れるべき</span></button>
-      <button data-v="no">No<span>増やすべきではない</span></button>
+      <button data-v="yes">Yes<span data-yes-ja></span></button>
+      <button data-v="no">No<span data-no-ja></span></button>
       <button data-v="unsure">Not sure<span>まだわからない</span></button>
     </div>
     <p id="voteMsg" class="muted"></p>
+  </section>
+
+  <!-- 単元に入る前の考え -->
+  <section id="v-pre" class="stack hidden">
+    <p class="step">これから学ぶ前に：今のあなたの考え</p>
+    <div>
+      <p class="topic" data-topic></p>
+      <p class="topic-ja" data-topic-ja></p>
+    </div>
+    <p class="muted" style="margin:0">まだ習っていないので、正解はありません。今の考えをそのまま教えてください。</p>
+    <div class="vote-btns" id="preBtns">
+      <button data-v="yes">Yes<span data-yes-ja></span></button>
+      <button data-v="no">No<span data-no-ja></span></button>
+      <button data-v="unsure">Not sure<span>まだわからない</span></button>
+    </div>
+    <div class="card stack">
+      <div>
+        <label class="field-label" for="preReason">そう考える理由を一言で <span class="muted small">（日本語でもOK）</span></label>
+        <textarea id="preReason" class="ja" rows="3" maxlength="200" placeholder="例：〜だと思うから。"></textarea>
+      </div>
+      <button id="btnPre" class="btn btn-primary" style="width:100%">送信する</button>
+    </div>
+    <p id="preMsg" class="note hidden"></p>
   </section>
 
   <!-- ディベート中 -->
@@ -164,14 +188,14 @@
       <div>
         <span class="field-label">あなたの本当の意見は？<span class="muted small">（ディベートで担当した立場と違ってもOK）</span></span>
         <div class="stance-pick" id="stancePick">
-          <button data-v="yes">Yes<small>受け入れるべき</small></button>
-          <button data-v="no">No<small>増やすべきではない</small></button>
+          <button data-v="yes">Yes<small data-yes-ja></small></button>
+          <button data-v="no">No<small data-no-ja></small></button>
         </div>
       </div>
     </div>
     <div id="oreoBoxes" class="stack"></div>
     <details class="expr">
-      <summary>使える表現（資料1）</summary>
+      <summary id="exprTitle"></summary>
       <div class="expr-grid" id="exprGrid"></div>
     </details>
     <label class="consent"><input type="checkbox" id="inConsent" checked>この意見を、名前を出さずにモニターで紹介してもよい</label>
@@ -225,36 +249,50 @@
     setTimeout(() => el.remove(), isErr ? 5200 : 2600);
   }
 
+  let T = window.OREO_TOPIC(); // いまのセッションのトピック（文言）。サーバーから id を受け取ったら applyTopic で入れ替える
   const OREO = [
-    { key: "opinion", tag: "O", title: "Opinion 意見", hint: "あなたの立場をはっきり書こう", chips: ["I believe that Japan should ", "I don't think Japan should ", "In my opinion, "] },
+    { key: "opinion", tag: "O", title: "Opinion 意見", hint: "あなたの立場をはっきり書こう", chips: T.OPINION_CHIPS },
     { key: "reason", tag: "R", title: "Reason 理由", hint: "いちばん大事な理由を1つ", chips: ["First of all, ", "This is because ", "The main reason is that "] },
     { key: "example", tag: "E", title: "Example 具体例", hint: "数字・事実・例で理由を支えよう", chips: ["For example, ", "According to the data, ", "In fact, ", "Moreover, "] },
     { key: "conclusion", tag: "O", title: "Opinion 意見（まとめ）", hint: "もう一度、自分の意見をまとめよう", chips: ["Therefore, ", "For these reasons, ", "That is why "] },
   ];
 
   const params = new URLSearchParams(location.search);
-  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, last: null, editing: false, stance: "", view: "" };
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, last: null, editing: false, stance: "", view: "", topic: "", preStance: "" };
   const sid = () => `${st.s}_${st.cls}-${st.num}`;
 
   /* ---------- 初期化 ---------- */
   if (API.demo) $("#demoBanner").classList.remove("hidden");
-  $$("[data-topic]").forEach((e) => (e.textContent = C.TOPIC));
-  $$("[data-topic-ja]").forEach((e) => (e.textContent = C.TOPIC_JA));
-  $("#finalQ").textContent = C.FINAL_QUESTION;
-  $("#finalQja").textContent = C.FINAL_QUESTION_JA;
+  const chipsHtml = (a) => a.chips.map((c) => `<button type="button" class="chip" data-for="${a.key}" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("");
+  function applyTopic(id) {
+    T = window.OREO_TOPIC(id);
+    st.topic = id || C.DEFAULT_TOPIC;
+    $$("[data-topic]").forEach((e) => (e.textContent = T.TOPIC));
+    $$("[data-topic-ja]").forEach((e) => (e.textContent = T.TOPIC_JA));
+    $$("[data-yes-ja]").forEach((e) => (e.textContent = T.YES_JA));
+    $$("[data-no-ja]").forEach((e) => (e.textContent = T.NO_JA));
+    $("#finalQ").textContent = T.FINAL_QUESTION;
+    $("#finalQja").textContent = T.FINAL_QUESTION_JA;
+    $("#exprTitle").textContent = T.EXPRESSIONS_TITLE;
+    $("#exprGrid").innerHTML = T.EXPRESSIONS.map(([en, ja]) => `<span class="en">${esc(en)}</span><span class="muted">${esc(ja)}</span>`).join("");
+    OREO[0].chips = T.OPINION_CHIPS;
+    const box = $("#chips-opinion"); // 書きかけの文章を消さないよう、入れ替えるのは書き出しの候補だけ
+    if (box) box.innerHTML = chipsHtml(OREO[0]);
+  }
   $("#wcTarget").textContent = C.TARGET_WORDS;
   $("#inCls").innerHTML = C.CLASSES.map((c) => `<option value="${esc(c)}">${esc(c)}組</option>`).join("");
   $("#inNum").innerHTML = Array.from({ length: C.MAX_NUMBER }, (_, i) => `<option value="${i + 1}">${i + 1}番</option>`).join("");
   $("#inGrp").innerHTML = `<option value="">—</option>` + Array.from({ length: C.GROUPS }, (_, i) => `<option value="${i + 1}">G${i + 1}</option>`).join("");
-  $("#exprGrid").innerHTML = C.EXPRESSIONS.map(([en, ja]) => `<span class="en">${esc(en)}</span><span class="muted">${esc(ja)}</span>`).join("");
 
   $("#oreoBoxes").innerHTML = OREO.map(
     (a) => `<div class="oreo-box">
       <div class="oreo-head"><span class="oreo-tag">${a.tag}</span><div><div class="oreo-title">${esc(a.title)}</div><div class="oreo-hint">${esc(a.hint)}</div></div></div>
-      <div class="chips">${a.chips.map((c) => `<button type="button" class="chip" data-for="${a.key}" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("")}</div>
+      <div class="chips" id="chips-${a.key}">${chipsHtml(a)}</div>
       <textarea id="ta-${a.key}" rows="${a.key === "example" ? 4 : 2}" spellcheck="false" autocapitalize="sentences" placeholder="Write in English."></textarea>
     </div>`
   ).join("");
+
+  applyTopic(C.DEFAULT_TOPIC);
 
   const saved = store.get("oreolive_login");
   if (saved) {
@@ -272,12 +310,23 @@
   function show(view) {
     if (st.view === view) return;
     st.view = view;
-    ["login", "vote", "wait", "write", "feedback", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
+    ["login", "pre", "vote", "wait", "write", "feedback", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
     window.scrollTo(0, 0);
   }
   function render() {
     if (!st.phase) return show("login");
     $("#who").textContent = `${st.cls}組${st.num}番${st.grp ? " · G" + st.grp : ""}`;
+    if (st.phase === "pre") {
+      const mine = st.mine && st.mine.pre;
+      const cur = st.preStance || (mine ? mine.stance : "");
+      $$("#preBtns button").forEach((b) => b.classList.toggle("on", cur === b.dataset.v));
+      if (mine && !$("#preReason").value) $("#preReason").value = mine.reason || "";
+      const msg = $("#preMsg");
+      msg.textContent = mine ? "送信しました。ありがとう！（書き直して、もう一度送信することもできます）" : "";
+      msg.classList.toggle("hidden", !mine);
+      $("#btnPre").textContent = mine ? "書き直して送信する" : "送信する";
+      return show("pre");
+    }
     if (st.phase === "vote") {
       $$("#voteBtns button").forEach((b) => b.classList.toggle("on", st.mine && st.mine.vote === b.dataset.v));
       $("#voteMsg").textContent = st.mine && st.mine.vote ? "送信しました。先生の指示を待ってください（選び直すこともできます）。" : "";
@@ -305,6 +354,7 @@
     try {
       const res = await API.state(s, $("#inCls").value, $("#inNum").value);
       Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine });
+      if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp });
       restoreLocal();
       render();
@@ -316,7 +366,7 @@
     }
   });
   $("#who").addEventListener("click", () => {
-    if (st.view === "write" || st.view === "vote") { st.phase = null; st.view = ""; render(); }
+    if (st.view === "write" || st.view === "vote" || st.view === "pre") { st.phase = null; st.view = ""; render(); }
   });
 
   function restoreLocal() {
@@ -339,6 +389,7 @@
       try {
         const res = await API.state(st.s, st.cls, st.num);
         const changed = res.phase !== st.phase;
+        if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
         st.mine = res.mine || st.mine;
         st.phase = res.phase;
         if (changed) { st.view = ""; render(); }
@@ -346,6 +397,34 @@
       } catch (e) { /* 一時的な通信エラーは無視して次回再試行 */ }
     }, 5000);
   }
+
+  /* ---------- 単元に入る前の考え ---------- */
+  $("#preBtns").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    st.preStance = b.dataset.v;
+    $$("#preBtns button").forEach((x) => x.classList.toggle("on", x === b));
+  });
+  $("#btnPre").addEventListener("click", async () => {
+    const stance = st.preStance || (st.mine && st.mine.pre ? st.mine.pre.stance : "");
+    const reason = $("#preReason").value.trim();
+    if (!stance) return toast("Yes・No・Not sure のどれかを選ぼう", true);
+    if (!reason) return toast("理由を一言書いてから送信しよう（日本語でもOK）", true);
+    const btn = $("#btnPre");
+    btn.disabled = true;
+    try {
+      const res = await API.prevote({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance, reason });
+      st.mine = Object.assign({}, st.mine, { pre: { stance: res.stance, reason: res.reason } });
+      $("#preReason").value = res.reason;
+      render();
+      toast("送信しました");
+    } catch (e) {
+      toast(e.message, true);
+      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.phase = r.phase; st.view = ""; render(); } catch {} }
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   /* ---------- 投票 ---------- */
   $("#voteBtns").addEventListener("click", async (ev) => {
@@ -452,7 +531,7 @@
     const g = (label, v) => `<div class="grade g-${esc(v)}"><b>${esc(v || "-")}</b><span>${label}</span></div>`;
     const flagNote = {
       inappropriate: "人ではなく「政策」について論じよう。根拠となるデータや事実は何だろう？",
-      off_topic: "今日のテーマ（日本の難民受け入れ）について書けているか、もう一度確認しよう。",
+      off_topic: `今日のテーマ（${T.TOPIC_SHORT_JA}）について書けているか、もう一度確認しよう。`,
       japanese_mixed: "日本語の部分は、下の「もっと良い表現」を参考に英語にしてみよう。",
     }[fb.flag];
     const r = remaining();
@@ -488,6 +567,7 @@
     API.state(st.s, saved.cls, saved.num)
       .then((res) => {
         Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", phase: res.phase, mine: res.mine });
+        if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
         restoreLocal();
         render();
         startPolling();

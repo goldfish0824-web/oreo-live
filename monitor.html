@@ -35,6 +35,12 @@
   footer.ctrl .stat b { color: var(--cream); font-family: var(--font-en); font-size: 16px; }
 
   /* 準備 */
+  .topic-row { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; }
+  .shift { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--pop); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; }
+  .shift .en { font-size: clamp(18px, 1.8vw, 28px); font-weight: 800; }
+  .flow-wrap.three { gap: 14px; }
+  .flow-wrap.three .flow-row .bar { height: clamp(42px, 4.6vw, 64px); }
+  .flow-sub { color: var(--ink-2); font-weight: 700; font-size: clamp(14px, 1.2vw, 18px); margin-top: 10px; }
   .qr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; }
   .qr-card { text-align: center; }
   .qr-card .qr svg { width: min(300px, 70vw); height: auto; border-radius: 12px; }
@@ -159,6 +165,11 @@
     <section class="pane" data-pane="setup">
       <div class="ttl">授業の準備</div>
       <div class="row"><span class="code-big" id="codeShow"></span><span class="muted small" id="modelShow"></span></div>
+      <div class="row topic-row">
+        <label class="field-label" for="selTopic" style="margin:0">トピック</label>
+        <select id="selTopic" style="width:auto;min-width:300px"></select>
+        <span class="small muted">投票や提出が1件でも入ると変えられません。練習は、本番と別のセッションコードで行ってください。</span>
+      </div>
       <div class="qr-grid">
         <div class="card qr-card"><div class="ttl">生徒用</div><div class="qr" id="qrStudent"></div><p class="url" id="urlStudent"></p></div>
         <div class="card qr-card"><div class="ttl">参観者用（指導案に貼付）</div><div class="qr" id="qrObserver"></div><p class="url" id="urlObserver"></p></div>
@@ -173,14 +184,14 @@
 
     <!-- 1 最初の考え -->
     <section class="pane hidden" data-pane="vote">
-      <p class="ttl">Step 1 — What do you think now?</p>
+      <p class="ttl" id="voteTtl">Step 1 — What do you think now?</p>
       <p class="topic-big" data-topic></p>
       <p class="topic-ja" data-topic-ja></p>
       <div class="vote-layout">
         <div class="vote-qr"><div id="qrVote"></div><div class="muted">コード</div><div class="code-big" data-code></div></div>
         <div>
           <div class="hbars" id="voteBars"></div>
-          <p class="muted" style="margin-top:16px">回答 <b id="voteN" class="en">0</b> 人（匿名で集計しています）</p>
+          <p class="muted" style="margin-top:16px">回答 <b id="voteN" class="en">0</b> 人（匿名で集計しています）<span id="voteNote"></span></p>
         </div>
       </div>
     </section>
@@ -274,7 +285,7 @@
     <!-- 6 新たな問い -->
     <section class="pane hidden" data-pane="final">
       <div class="final">
-        <div class="quote">“Human life first.” — Ogata Sadako</div>
+        <div class="quote" id="finalQuote"></div>
         <p class="q" id="finalQ"></p>
         <p class="ja" id="finalQja"></p>
       </div>
@@ -284,12 +295,14 @@
   <footer class="ctrl">
     <span class="muted">生徒画面：</span>
     <div class="seg" id="phaseSeg">
+      <button data-ph="pre" title="単元に入る前の考え（Yes / No / Not sure と一言の理由）を集める">単元前</button>
       <button data-ph="vote">投票</button>
       <button data-ph="wait">待機（ディベート）</button>
       <button data-ph="writing">ライティング</button>
       <button data-ph="closed">終了</button>
     </div>
     <span class="spacer"></span>
+    <span class="stat hidden" id="fPreWrap">単元前 <b id="fPre">0</b></span>
     <span class="stat">投票 <b id="fVotes">0</b></span>
     <span class="stat">提出 <b id="fSubs">0</b> 人</span>
     <span class="stat" id="fConn"></span>
@@ -320,23 +333,36 @@
   const fmt = (sec) => { const s = Math.max(0, Math.ceil(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
   const oreo = (r) => [r.opinion, r.reason, r.example, r.conclusion].filter(Boolean).join(" ");
   const COLORS = { yes: "var(--yes)", no: "var(--no)", unsure: "var(--unsure)" };
-  const LABEL = { yes: ["Yes", "受け入れるべき"], no: ["No", "増やすべきではない"], unsure: ["Not sure", "まだわからない"] };
+  let T = window.OREO_TOPIC(); // いまのセッションのトピック（文言）
+  const LABEL = { yes: ["Yes", T.YES_JA], no: ["No", T.NO_JA], unsure: ["Not sure", "まだわからない"] };
 
   if (API.demo) { $("#demoBanner").classList.remove("hidden"); $("#btnSeed").classList.remove("hidden"); }
-  $$("[data-topic]").forEach((e) => (e.textContent = C.TOPIC));
-  $$("[data-topic-ja]").forEach((e) => (e.textContent = C.TOPIC_JA));
-  $("#finalQ").textContent = C.FINAL_QUESTION;
-  $("#finalQja").textContent = C.FINAL_QUESTION_JA;
+  $("#selTopic").innerHTML = Object.entries(C.TOPICS).map(([id, t]) => `<option value="${esc(id)}">${esc(t.NAME)} — ${esc(t.TOPIC)}</option>`).join("");
+  function applyTopic(id) {
+    T = window.OREO_TOPIC(id);
+    D.topic = C.TOPICS[id] ? id : C.DEFAULT_TOPIC;
+    LABEL.yes[1] = T.YES_JA;
+    LABEL.no[1] = T.NO_JA;
+    $$("[data-topic]").forEach((e) => (e.textContent = T.TOPIC));
+    $$("[data-topic-ja]").forEach((e) => (e.textContent = T.TOPIC_JA));
+    $("#finalQ").textContent = T.FINAL_QUESTION;
+    $("#finalQja").textContent = T.FINAL_QUESTION_JA;
+    $("#finalQuote").textContent = T.QUOTE || "";
+    $("#finalQuote").classList.toggle("hidden", !T.QUOTE);
+    $("#selTopic").value = D.topic;
+    try { debate.refresh(); } catch {} // 最初の1回は、ディベートのタイマーがまだ用意されていない
+  }
 
   /* ================= データ ================= */
   const S = { s: "", key: "", observerKey: "" };
-  const D = { since: 0, subs: new Map(), votes: [], starCounts: {}, summary: null, phase: null, ok: true };
+  const D = { since: 0, subs: new Map(), votes: [], prevotes: [], starCounts: {}, summary: null, phase: null, topic: "", ok: true };
 
   function latestByStudent() {
     const m = new Map();
     for (const r of D.subs.values()) { const c = m.get(r.student); if (!c || r.version > c.version) m.set(r.student, r); }
     return m;
   }
+  applyTopic(C.DEFAULT_TOPIC);
   function counts(list, key) { const c = {}; list.forEach((x) => (c[x[key]] = (c[x[key]] || 0) + 1)); return c; }
 
   /* ================= ログイン ================= */
@@ -355,6 +381,7 @@
       const res = await API.session(s, key);
       Object.assign(S, { s: res.code, key });
       D.phase = res.phase;
+      applyTopic(res.topic);
       store.set("oreolive_monitor", { s: S.s, key });
       try { const info = await API.info(S.s, key); S.observerKey = info.observerKey; $("#modelShow").textContent = "AI: " + info.model; } catch {}
       $("#login").classList.add("hidden");
@@ -403,7 +430,7 @@
 
   /* ================= 生徒画面のフェーズ ================= */
   async function setPhase(ph) {
-    try { await API.phase(S.s, S.key, ph); D.phase = ph; renderFooter(); toast("生徒画面：" + { vote: "投票", wait: "待機", writing: "ライティング", closed: "終了" }[ph]); }
+    try { await API.phase(S.s, S.key, ph); D.phase = ph; renderFooter(); renderActive(); toast("生徒画面：" + { pre: "単元前の考え", vote: "投票", wait: "待機", writing: "ライティング", closed: "終了" }[ph]); }
     catch (e) { toast(e.message, true); }
   }
   $("#phaseSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setPhase(b.dataset.ph); });
@@ -413,10 +440,12 @@
     try {
       const res = await API.live(S.s, S.key, D.since);
       D.votes = res.votes || [];
+      D.prevotes = res.prevotes || [];
       (res.subs || []).forEach((r) => { D.subs.set(r.id, r); D.since = Math.max(D.since, r.id); });
       D.starCounts = res.starCounts || {};
       D.summary = res.summary || null;
       D.phase = res.phase;
+      if (res.topic && res.topic !== D.topic) applyTopic(res.topic);
       D.ok = true;
     } catch (e) { D.ok = false; }
     renderFooter();
@@ -425,6 +454,8 @@
   function renderFooter() {
     $$("#phaseSeg button").forEach((b) => b.classList.toggle("on", b.dataset.ph === D.phase));
     $("#fVotes").textContent = D.votes.length;
+    $("#fPre").textContent = D.prevotes.length;
+    $("#fPreWrap").classList.toggle("hidden", !D.prevotes.length && D.phase !== "pre");
     $("#fSubs").textContent = latestByStudent().size;
     $("#fConn").textContent = D.ok ? "" : "⚠ 通信エラー（再試行中）";
   }
@@ -443,9 +474,12 @@
       <div class="num">${c[k] || 0}</div></div>`).join("");
   }
   function renderVote() {
-    const c = counts(D.votes, "stance");
-    $("#voteBars").innerHTML = hbars(c, ["yes", "no", "unsure"]);
-    $("#voteN").textContent = D.votes.length;
+    const pre = D.phase === "pre";
+    const list = pre ? D.prevotes : D.votes;
+    $("#voteTtl").textContent = pre ? "Before we start — What do you think now?" : "Step 1 — What do you think now?";
+    $("#voteBars").innerHTML = hbars(counts(list, "stance"), ["yes", "no", "unsure"]);
+    $("#voteN").textContent = list.length;
+    $("#voteNote").textContent = pre ? "　単元に入る前の考えを集めています（理由は画面には出ません）" : "";
   }
 
   /* ================= タイマー ================= */
@@ -496,7 +530,7 @@
       const p = P[i];
       $("#dPh").textContent = p.label;
       $("#dWho").textContent = p.who;
-      const hint = /反論/.test(p.label) ? C.DEBATE_HINTS.rebut : p.side ? C.DEBATE_HINTS[p.side] : "";
+      const hint = /反論/.test(p.label) ? T.DEBATE_HINTS.rebut : p.side ? T.DEBATE_HINTS[p.side] : "";
       $("#dHint").textContent = hint;
       $("#dHint").classList.toggle("hidden", !hint);
       $("#phaseList").innerHTML = P.map((q, k) => `<li data-i="${k}" class="${k < i ? "done" : k === i ? "cur" : ""}"><span>${esc(q.label)}</span><span class="t">${fmt(q.sec)}</span></li>`).join("");
@@ -508,7 +542,14 @@
     $("#dPrev").onclick = () => go(i - 1);
     $("#dReset").onclick = () => go(0);
     go(0);
-    return { toggle: () => timer.toggle(), next: () => go(i + 1), prev: () => go(i - 1) };
+    // トピックが変わったとき：タイマーは止めずに、ヒントの文だけ入れ替える
+    function refresh() {
+      const p = P[i];
+      const hint = /反論/.test(p.label) ? T.DEBATE_HINTS.rebut : p.side ? T.DEBATE_HINTS[p.side] : "";
+      $("#dHint").textContent = hint;
+      $("#dHint").classList.toggle("hidden", !hint);
+    }
+    return { toggle: () => timer.toggle(), next: () => go(i + 1), prev: () => go(i - 1), refresh };
   })();
 
   /* ================= 3 ライティング ================= */
@@ -580,19 +621,29 @@
 
     if (rView === "flow") {
       const before = counts(D.votes, "stance"), after = counts(latest, "stance");
-      const vmap = Object.fromEntries(D.votes.map((v) => [v.student, v.stance]));
-      const flow = {};
-      latest.forEach((r) => { const v = vmap[r.student]; if (v) flow[`${v}>${r.stance}`] = (flow[`${v}>${r.stance}`] || 0) + 1; });
+      const hasPre = D.prevotes.length > 0;
+      // 変化は「いちばん古い回答」から数える：単元前の回答があればそこから、なければ今日の最初から
+      const flowFrom = (list) => {
+        const m = Object.fromEntries(list.map((v) => [v.student, v.stance]));
+        const fl = {};
+        latest.forEach((r) => { const v = m[r.student]; if (v) fl[`${v}>${r.stance}`] = (fl[`${v}>${r.stance}`] || 0) + 1; });
+        return fl;
+      };
+      const flow = flowFrom(hasPre ? D.prevotes : D.votes);
       const changed = (flow["yes>no"] || 0) + (flow["no>yes"] || 0);
       const decided = (flow["unsure>yes"] || 0) + (flow["unsure>no"] || 0);
+      const today = flowFrom(D.votes);
+      const todayChanged = (today["yes>no"] || 0) + (today["no>yes"] || 0) + (today["unsure>yes"] || 0) + (today["unsure>no"] || 0);
       const chip = (k, txt) => `<div class="flow-chip">${txt} <b>${flow[k] || 0}</b> 人</div>`;
-      $("#rFlow").innerHTML = latest.length || D.votes.length ? `
-        <div class="flow-wrap">
+      $("#rFlow").innerHTML = latest.length || D.votes.length || hasPre ? `
+        <div class="flow-wrap ${hasPre ? "three" : ""}">
           <div class="legend"><span><i style="background:var(--yes)"></i>Yes</span><span><i style="background:var(--no)"></i>No</span><span><i style="background:var(--unsure)"></i>Not sure</span></div>
-          <div class="flow-row"><div class="lbl">授業の最初 <span class="muted small">（${D.votes.length}人）</span></div><div class="bar">${stack(before, ["yes", "no", "unsure"])}</div></div>
+          ${hasPre ? `<div class="flow-row"><div class="lbl">単元の前 <span class="muted small">（${D.prevotes.length}人）</span></div><div class="bar">${stack(counts(D.prevotes, "stance"), ["yes", "no", "unsure"])}</div></div>` : ""}
+          <div class="flow-row"><div class="lbl">${hasPre ? "今日の最初（教科書を読んだ後）" : "授業の最初"} <span class="muted small">（${D.votes.length}人）</span></div><div class="bar">${stack(before, ["yes", "no", "unsure"])}</div></div>
           <div class="flow-row"><div class="lbl">ディベートの後（ライティング） <span class="muted small">（${latest.length}人）</span></div><div class="bar">${stack(after, ["yes", "no"])}</div></div>
-          <div><div class="ttl">考えが変わった人 <span class="huge" style="font-size:44px;color:var(--ink)">${changed}</span> 人　／　Not sure から決めた人 <span class="huge" style="font-size:44px;color:var(--ink)">${decided}</span> 人</div>
-          <div class="flow-chips">${chip("yes>no", "Yes → No")}${chip("no>yes", "No → Yes")}${chip("unsure>yes", "Not sure → Yes")}${chip("unsure>no", "Not sure → No")}</div></div>
+          <div><div class="ttl">${hasPre ? "単元の前から" : ""}考えが変わった人 <span class="huge" style="font-size:44px;color:var(--ink)">${changed}</span> 人　／　Not sure から決めた人 <span class="huge" style="font-size:44px;color:var(--ink)">${decided}</span> 人</div>
+          <div class="flow-chips">${chip("yes>no", "Yes → No")}${chip("no>yes", "No → Yes")}${chip("unsure>yes", "Not sure → Yes")}${chip("unsure>no", "Not sure → No")}</div>
+          ${hasPre ? `<div class="flow-sub">今日の授業（ディベート）の中で考えが動いた人：${todayChanged} 人</div>` : ""}</div>
         </div>` : `<div class="empty">まだデータがありません</div>`;
     }
 
@@ -604,12 +655,13 @@
         const max = Math.max(1, ...rows.map((x) => x[1]));
         const pts = D.summary ? D.summary[stance + "_points"] || [] : [];
         return `<div class="reason-col card"><h3 style="color:${stance === "yes" ? "#174f93" : "#9a3a12"}">${LABEL[stance][0]} <span class="muted small" style="font-family:var(--font)">${list.length}人</span></h3>
-          ${rows.length ? rows.map(([t, n]) => { const L = C.REASON_LABELS[t] || [t, ""]; return `<div class="rbar"><div class="name">${esc(L[0])}<small>${esc(L[1])}</small></div><div class="n">${n}</div><div class="track"><div style="width:${(n / max) * 100}%;background:${COLORS[stance]}"></div></div></div>`; }).join("") : `<div class="empty">—</div>`}
+          ${rows.length ? rows.map(([t, n]) => { const L = T.REASON_LABELS[t] || [t, ""]; return `<div class="rbar"><div class="name">${esc(L[0])}<small>${esc(L[1])}</small></div><div class="n">${n}</div><div class="track"><div style="width:${(n / max) * 100}%;background:${COLORS[stance]}"></div></div></div>`; }).join("") : `<div class="empty">—</div>`}
           ${pts.length ? `<div class="ttl" style="margin-top:14px">AI のまとめ</div><ol class="points">${pts.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>` : ""}
         </div>`;
       };
       $("#rReasons").innerHTML = `<div class="reason-cols">${col("yes")}${col("no")}</div>
         ${D.summary ? `<div class="common"><div class="ttl">Common ground — 両方に共通する考え</div><div class="en">${esc(D.summary.common_ground_en)}</div><div class="muted">${esc(D.summary.common_ground_ja)}</div></div>
+        ${D.summary.shift_ja ? `<div class="shift"><div class="ttl">単元の前と比べて — 理由はどう変わった？</div><div class="en">${esc(D.summary.shift_en)}</div><div class="muted">${esc(D.summary.shift_ja)}</div></div>` : ""}
         <p class="muted" style="margin-top:12px">${esc(D.summary.overview_ja)}</p>` : `<p class="muted" style="margin-top:14px">「AI で集約」を押すと、それぞれの立場の主な理由と、両者に共通する考えが表示されます。</p>`}`;
     }
 
@@ -671,11 +723,16 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (e) { toast(e.message, true); }
   };
+  $("#selTopic").addEventListener("change", async () => {
+    const want = $("#selTopic").value;
+    try { const res = await API.topic(S.s, S.key, want); applyTopic(res.topic); D.summary = null; toast("トピック：" + T.NAME); renderActive(); }
+    catch (e) { $("#selTopic").value = D.topic; toast(e.message, true); }
+  });
   let clearArmed = 0;
   $("#btnClear").onclick = async () => {
     const b = $("#btnClear");
     if (Date.now() - clearArmed > 4000) { clearArmed = Date.now(); b.textContent = "本当に削除する場合はもう一度押す"; setTimeout(() => (b.textContent = "このセッションのデータを削除"), 4000); return; }
-    try { await API.clear(S.s, S.key); D.subs.clear(); D.since = 0; D.summary = null; D.votes = []; toast("削除しました"); b.textContent = "このセッションのデータを削除"; poll(); }
+    try { await API.clear(S.s, S.key); D.subs.clear(); D.since = 0; D.summary = null; D.votes = []; D.prevotes = []; toast("削除しました"); b.textContent = "このセッションのデータを削除"; poll(); }
     catch (e) { toast(e.message, true); }
   };
   $("#btnSeed").onclick = async () => { await API.seed(S.s); toast("サンプルデータを入れました"); poll(); };
