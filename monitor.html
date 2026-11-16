@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OREO Live — Monitor</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; }
+  .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .login-screen .card { width: min(440px, 100%); }
+  #appMon { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  nav.tabs { display: flex; gap: 4px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); overflow-x: auto; }
+  nav.tabs button { border: 0; background: transparent; padding: 8px 14px; border-radius: 10px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+  nav.tabs button.on { background: var(--accent); color: #fff; }
+  nav.tabs .kbd { font-size: 11px; opacity: 0.6; margin-right: 4px; font-family: var(--font-en); }
+
+  .stage { flex: 1; min-height: 0; overflow: auto; padding: clamp(14px, 2.4vw, 36px); }
+  .pane { max-width: 1400px; margin: 0 auto; }
+  .ttl { font-size: clamp(18px, 1.6vw, 24px); color: var(--ink-2); font-weight: 700; margin: 0 0 6px; }
+  .topic-big { font-family: var(--font-en); font-weight: 800; color: var(--accent); font-size: clamp(30px, 4vw, 60px); line-height: 1.15; margin: 0; }
+  .topic-ja { font-size: clamp(16px, 1.6vw, 24px); color: var(--ink-2); margin: 6px 0 0; }
+  .huge { font-family: var(--font-en); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+
+  footer.ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; background: var(--surface); border-top: 1px solid var(--line); font-size: 14px; }
+  footer.ctrl .seg button { padding: 6px 12px; font-size: 14px; }
+  footer.ctrl .stat { color: var(--ink-2); }
+  footer.ctrl .stat b { color: var(--ink); font-family: var(--font-en); }
+
+  /* 準備 */
+  .qr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; }
+  .qr-card { text-align: center; }
+  .qr-card .qr svg { width: min(300px, 70vw); height: auto; }
+  .url { font-family: var(--font-en); font-size: 13px; word-break: break-all; color: var(--ink-2); background: var(--surface-2); padding: 6px 10px; border-radius: 8px; }
+
+  /* 投票 */
+  .vote-layout { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: clamp(18px, 3vw, 48px); align-items: center; margin-top: clamp(18px, 3vw, 40px); }
+  .vote-qr { text-align: center; }
+  .vote-qr svg { width: 100%; height: auto; background: #fff; border-radius: 12px; }
+  .code-big { font-family: var(--font-en); font-weight: 800; font-size: 34px; letter-spacing: 0.08em; }
+  .hbars { display: flex; flex-direction: column; gap: 18px; }
+  .hbar-row { display: grid; grid-template-columns: 170px 1fr 90px; gap: 14px; align-items: center; }
+  .hbar-row .lbl { font-family: var(--font-en); font-weight: 800; font-size: clamp(20px, 2.2vw, 34px); }
+  .hbar-row .lbl small { display: block; font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--ink-2); }
+  .hbar-track { height: clamp(34px, 4vw, 60px); background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 0 6px 6px 0; transition: width 0.5s ease; }
+  .hbar-row .num { font-family: var(--font-en); font-weight: 800; font-size: clamp(24px, 2.6vw, 40px); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* タイマー */
+  .debate-layout { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: clamp(18px, 3vw, 40px); }
+  .phase-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .phase-list li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; cursor: pointer; }
+  .phase-list li.done { color: var(--ink-3); }
+  .phase-list li.cur { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .phase-list li .t { font-family: var(--font-en); font-variant-numeric: tabular-nums; }
+  .timer-card { text-align: center; padding: clamp(20px, 3vw, 44px); }
+  .timer-card .ph { font-size: clamp(28px, 3.4vw, 54px); font-weight: 800; margin: 0; }
+  .timer-card .who { font-size: clamp(16px, 1.7vw, 26px); color: var(--ink-2); margin: 6px 0 0; }
+  .timer-card .clock { font-size: clamp(90px, 15vw, 230px); margin: 10px 0; }
+  .timer-card .clock.low { color: var(--no); }
+  .timer-card .hint { font-family: var(--font-en); font-size: clamp(18px, 1.9vw, 30px); color: var(--accent); background: var(--accent-soft); display: inline-block; padding: 8px 18px; border-radius: 12px; }
+  .prog { height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 8px auto 18px; max-width: 720px; }
+  .prog div { height: 100%; background: var(--accent); width: 0; transition: width 0.2s linear; }
+  .timer-ctrl { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+  /* ライティング */
+  .write-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(18px, 3vw, 40px); align-items: start; }
+  .submit-big { font-size: clamp(64px, 9vw, 140px); }
+  .banner-hint { background: var(--no); color: #fff; font-weight: 800; border-radius: 14px; padding: 14px 18px; font-size: clamp(20px, 2.2vw, 34px); text-align: center; margin-bottom: 16px; }
+  .groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .gchip { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+  .gchip b { display: block; font-family: var(--font-en); font-size: 22px; }
+  .gchip.full { background: var(--good-soft); border-color: #b9dcc7; }
+
+  /* 結果 */
+  .subtabs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+  .flow-wrap { display: flex; flex-direction: column; gap: 22px; }
+  .flow-row .lbl { font-weight: 800; font-size: clamp(18px, 1.8vw, 28px); margin-bottom: 6px; }
+  .flow-row .bar { height: clamp(52px, 6vw, 84px); }
+  .flow-row .stackbar > div { font-size: clamp(16px, 1.8vw, 28px); font-family: var(--font-en); }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-weight: 700; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+  .flow-chips { display: flex; gap: 12px; flex-wrap: wrap; }
+  .flow-chip { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; font-size: clamp(16px, 1.6vw, 24px); font-weight: 700; }
+  .flow-chip b { font-family: var(--font-en); font-size: 1.3em; }
+  .reason-cols { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 3vw, 40px); }
+  .reason-col h3 { margin: 0 0 12px; font-size: clamp(22px, 2.2vw, 34px); font-family: var(--font-en); }
+  .rbar { display: grid; grid-template-columns: 1fr 48px; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .rbar .name { font-weight: 700; font-size: clamp(15px, 1.4vw, 21px); }
+  .rbar .name small { color: var(--ink-2); font-weight: 600; margin-left: 6px; }
+  .rbar .track { grid-column: 1 / 2; height: 14px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+  .rbar .track div { height: 100%; border-radius: 0 4px 4px 0; }
+  .rbar .n { grid-row: 1 / 3; grid-column: 2; font-family: var(--font-en); font-weight: 800; font-size: 24px; text-align: right; }
+  .points { margin: 14px 0 0; padding-left: 1.2em; font-family: var(--font-en); font-size: clamp(16px, 1.5vw, 22px); }
+  .common { margin-top: 22px; background: var(--accent-soft); border-radius: 14px; padding: 14px 18px; }
+  .common .en { font-size: clamp(18px, 1.8vw, 28px); font-weight: 700; color: var(--accent); }
+  .picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+  .pick-card { border-top: 6px solid var(--line); }
+  .pick-card.yes { border-top-color: var(--yes); }
+  .pick-card.no { border-top-color: var(--no); }
+  .pick-card .src { font-weight: 800; color: var(--ink-2); margin-bottom: 8px; }
+  .pick-card .txt { font-family: var(--font-en); font-size: clamp(17px, 1.6vw, 24px); line-height: 1.5; margin: 0 0 10px; }
+  .pick-card .why { color: var(--ink-2); font-size: 15px; }
+
+  /* Reply / 問い */
+  .reply-text { font-family: var(--font-en); font-size: clamp(20px, 2.1vw, 32px); line-height: 1.45; margin: 0; }
+  .final { text-align: center; padding-top: clamp(20px, 6vh, 80px); }
+  .final .quote { font-family: var(--font-en); font-size: clamp(18px, 1.8vw, 28px); color: var(--ink-2); letter-spacing: 0.04em; }
+  .final .q { font-family: var(--font-en); font-weight: 800; color: var(--accent); font-size: clamp(32px, 4.2vw, 66px); line-height: 1.25; white-space: pre-line; margin: 24px 0; }
+  .final .ja { font-size: clamp(18px, 1.9vw, 30px); color: var(--ink-2); max-width: 1100px; margin: 0 auto; }
+
+  .empty { color: var(--ink-3); font-size: 18px; padding: 30px 0; text-align: center; }
+  @media (max-width: 860px) { .vote-layout, .debate-layout, .write-layout, .reason-cols { grid-template-columns: 1fr; } .hbar-row { grid-template-columns: 110px 1fr 60px; } }
+</style>
+</head>
+<body>
+<div id="demoBanner" class="demo-banner hidden">デモモード：AIは使わず、このブラウザ内のデータだけで動作します（準備タブの「サンプルデータを入れる」で見た目を確認できます）</div>
+
+<div id="login" class="login-screen">
+  <div class="card stack" style="display:flex;flex-direction:column;gap:14px">
+    <div><div class="ttl">OREO Live — 教員用モニター</div><p class="muted small" style="margin:0">授業の日のセッションコードと、教員キーを入力してください。</p></div>
+    <div><label class="field-label" for="inS">セッションコード</label><input id="inS" type="text" placeholder="例：1210" autocomplete="off"></div>
+    <div><label class="field-label" for="inK">教員キー</label><input id="inK" type="password" autocomplete="current-password"></div>
+    <button id="btnOpen" class="btn btn-primary">開く</button>
+    <p class="small muted" style="margin:0">同じコードで開き直すと、続きから表示されます。</p>
+  </div>
+</div>
+
+<div id="appMon" class="hidden">
+  <nav class="tabs" id="tabs">
+    <button data-tab="setup"><span class="kbd">0</span>準備</button>
+    <button data-tab="vote"><span class="kbd">1</span>最初の考え</button>
+    <button data-tab="debate"><span class="kbd">2</span>ディベート</button>
+    <button data-tab="write"><span class="kbd">3</span>ライティング</button>
+    <button data-tab="results"><span class="kbd">4</span>結果</button>
+    <button data-tab="reply"><span class="kbd">5</span>Reply Challenge</button>
+    <button data-tab="final"><span class="kbd">6</span>新たな問い</button>
+  </nav>
+
+  <div class="stage">
+    <!-- 0 準備 -->
+    <section class="pane" data-pane="setup">
+      <div class="ttl">授業の準備</div>
+      <div class="row"><span class="code-big" id="codeShow"></span><span class="muted small" id="modelShow"></span></div>
+      <div class="qr-grid">
+        <div class="card qr-card"><div class="ttl">生徒用</div><div class="qr" id="qrStudent"></div><p class="url" id="urlStudent"></p></div>
+        <div class="card qr-card"><div class="ttl">参観者用（指導案に貼付）</div><div class="qr" id="qrObserver"></div><p class="url" id="urlObserver"></p></div>
+      </div>
+      <div class="row" style="margin-top:18px">
+        <button class="btn" id="btnCsv">提出データを CSV で保存</button>
+        <button class="btn btn-danger" id="btnClear">このセッションのデータを削除</button>
+        <button class="btn hidden" id="btnSeed">サンプルデータを入れる（デモ）</button>
+      </div>
+      <p class="small muted">リハーサルでは別のコード（例：TEST）を使うと、本番のデータと混ざりません。キーボードの 0〜6 でタブを切り替え、Space でタイマーの開始／一時停止、→ で次へ進めます。</p>
+    </section>
+
+    <!-- 1 最初の考え -->
+    <section class="pane hidden" data-pane="vote">
+      <p class="ttl">Step 1 — What do you think now?</p>
+      <p class="topic-big" data-topic></p>
+      <p class="topic-ja" data-topic-ja></p>
+      <div class="vote-layout">
+        <div class="vote-qr"><div id="qrVote"></div><div class="muted">コード</div><div class="code-big" data-code></div></div>
+        <div>
+          <div class="hbars" id="voteBars"></div>
+          <p class="muted" style="margin-top:16px">回答 <b id="voteN" class="en">0</b> 人（匿名で集計しています）</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 ディベート -->
+    <section class="pane hidden" data-pane="debate">
+      <div class="debate-layout">
+        <div>
+          <div class="ttl">Mini-Debate</div>
+          <ul class="phase-list" id="phaseList"></ul>
+          <label class="small muted row" style="margin-top:12px;gap:6px"><input type="checkbox" id="autoNext" checked> 時間になったら自動で次へ（3秒後）</label>
+        </div>
+        <div class="card timer-card">
+          <p class="ph" id="dPh"></p>
+          <p class="who" id="dWho"></p>
+          <div class="clock huge" id="dClock">0:00</div>
+          <div class="prog"><div id="dProg"></div></div>
+          <div class="hint hidden" id="dHint"></div>
+          <div class="timer-ctrl" style="margin-top:20px">
+            <button class="btn" id="dPrev">◀ 前へ</button>
+            <button class="btn btn-primary" id="dToggle">▶ スタート</button>
+            <button class="btn" id="dNext">次へ ▶</button>
+            <button class="btn btn-ghost" id="dReset">↺ やり直す</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 ライティング -->
+    <section class="pane hidden" data-pane="write">
+      <div id="wBanner" class="banner-hint hidden"></div>
+      <div class="write-layout">
+        <div class="card timer-card">
+          <p class="ph">Writing — OREO</p>
+          <p class="who">Write your <b>real</b> opinion. Then read the AI feedback and revise.</p>
+          <div class="clock huge" id="wClock">12:00</div>
+          <div class="prog"><div id="wProg"></div></div>
+          <div class="timer-ctrl">
+            <button class="btn btn-primary" id="wStart">▶ ライティング開始（生徒画面も切り替え）</button>
+            <button class="btn" id="wPause">一時停止</button>
+            <button class="btn btn-ghost" id="wReset">↺ リセット</button>
+          </div>
+        </div>
+        <div>
+          <div class="ttl">提出</div>
+          <div class="row" style="align-items:baseline;gap:8px"><span class="huge submit-big" id="wN">0</span><span class="huge" style="font-size:40px;color:var(--ink-3)">/ <span id="wD">0</span></span></div>
+          <p class="muted" style="margin:0 0 14px">再提出 <b id="wRe" class="en">0</b> 件</p>
+          <div class="groups" id="wGroups"></div>
+          <label class="small muted row" style="margin-top:14px;gap:6px"><input type="checkbox" id="wShowStance"> 賛否の割合を表示する</label>
+          <div id="wStance" class="hidden" style="height:44px;margin-top:8px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 結果 -->
+    <section class="pane hidden" data-pane="results">
+      <div class="subtabs">
+        <div class="seg" id="rTabs">
+          <button data-r="flow" class="on">① 考えの変化</button>
+          <button data-r="reasons">② 理由</button>
+          <button data-r="picks">③ 代表意見</button>
+        </div>
+        <span class="spacer"></span>
+        <span class="small muted" id="sumInfo"></span>
+        <button class="btn btn-primary" id="btnSum">AI で集約</button>
+      </div>
+      <div id="rFlow"></div>
+      <div id="rReasons" class="hidden"></div>
+      <div id="rPicks" class="hidden"></div>
+    </section>
+
+    <!-- 5 Reply Challenge -->
+    <section class="pane hidden" data-pane="reply">
+      <div class="subtabs">
+        <div class="seg" id="replyTabs">
+          <button data-side="no" class="on">No側の意見に Yes側として返す</button>
+          <button data-side="yes">Yes側の意見に No側として返す</button>
+        </div>
+      </div>
+      <div class="write-layout">
+        <div class="card" id="replyCard"></div>
+        <div class="card timer-card">
+          <p class="ph" id="rpPh">Reply in pairs</p>
+          <p class="who">30 seconds each — “I see your point, but …”</p>
+          <div class="clock huge" id="rpClock">1:00</div>
+          <div class="timer-ctrl"><button class="btn btn-primary" id="rpToggle">▶ スタート</button><button class="btn btn-ghost" id="rpReset">↺</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 新たな問い -->
+    <section class="pane hidden" data-pane="final">
+      <div class="final">
+        <div class="quote">“Human life first.” — Ogata Sadako</div>
+        <p class="q" id="finalQ"></p>
+        <p class="ja" id="finalQja"></p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="ctrl">
+    <span class="muted">生徒画面：</span>
+    <div class="seg" id="phaseSeg">
+      <button data-ph="vote">投票</button>
+      <button data-ph="wait">待機（ディベート）</button>
+      <button data-ph="writing">ライティング</button>
+      <button data-ph="closed">終了</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat">投票 <b id="fVotes">0</b></span>
+    <span class="stat">提出 <b id="fSubs">0</b> 人</span>
+    <span class="stat" id="fConn"></span>
+    <button class="btn btn-sm" id="btnFull">全画面</button>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script>
+(function () {
+  const C = window.OREO_CONFIG, API = window.OREO_API;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  function toast(msg, isErr) {
+    const el = document.createElement("div");
+    el.className = "toast" + (isErr ? " err" : "");
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), isErr ? 5200 : 2600);
+  }
+  const fmt = (sec) => { const s = Math.max(0, Math.ceil(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+  const oreo = (r) => [r.opinion, r.reason, r.example, r.conclusion].filter(Boolean).join(" ");
+  const COLORS = { yes: "var(--yes)", no: "var(--no)", unsure: "var(--unsure)" };
+  const LABEL = { yes: ["Yes", "受け入れるべき"], no: ["No", "増やすべきではない"], unsure: ["Not sure", "まだわからない"] };
+
+  if (API.demo) { $("#demoBanner").classList.remove("hidden"); $("#btnSeed").classList.remove("hidden"); }
+  $$("[data-topic]").forEach((e) => (e.textContent = C.TOPIC));
+  $$("[data-topic-ja]").forEach((e) => (e.textContent = C.TOPIC_JA));
+  $("#finalQ").textContent = C.FINAL_QUESTION;
+  $("#finalQja").textContent = C.FINAL_QUESTION_JA;
+
+  /* ================= データ ================= */
+  const S = { s: "", key: "", observerKey: "" };
+  const D = { since: 0, subs: new Map(), votes: [], starCounts: {}, summary: null, phase: null, ok: true };
+
+  function latestByStudent() {
+    const m = new Map();
+    for (const r of D.subs.values()) { const c = m.get(r.student); if (!c || r.version > c.version) m.set(r.student, r); }
+    return m;
+  }
+  function counts(list, key) { const c = {}; list.forEach((x) => (c[x[key]] = (c[x[key]] || 0) + 1)); return c; }
+
+  /* ================= ログイン ================= */
+  const params = new URLSearchParams(location.search);
+  const saved = store.get("oreolive_monitor") || {};
+  $("#inS").value = (params.get("s") || saved.s || "").toUpperCase();
+  $("#inK").value = saved.key || "";
+  if (API.demo && !$("#inK").value) $("#inK").value = "demo";
+  $("#btnOpen").addEventListener("click", openSession);
+  $("#inK").addEventListener("keydown", (e) => e.key === "Enter" && openSession());
+
+  async function openSession() {
+    const s = $("#inS").value.trim().toUpperCase(), key = $("#inK").value;
+    if (!s || !key) return toast("コードとキーを入力してください", true);
+    try {
+      const res = await API.session(s, key);
+      Object.assign(S, { s: res.code, key });
+      D.phase = res.phase;
+      store.set("oreolive_monitor", { s: S.s, key });
+      try { const info = await API.info(S.s, key); S.observerKey = info.observerKey; $("#modelShow").textContent = "AI: " + info.model; } catch {}
+      $("#login").classList.add("hidden");
+      $("#appMon").classList.remove("hidden");
+      $$("[data-code]").forEach((e) => (e.textContent = S.s));
+      $("#codeShow").textContent = "セッション " + S.s;
+      drawQRs();
+      showTab(store.get("oreolive_monitor_tab") || "setup");
+      poll();
+      setInterval(poll, 4000);
+    } catch (e) { toast(e.message, true); }
+  }
+
+  /* ================= QR ================= */
+  function qrSvg(text) {
+    try { const q = qrcode(0, "M"); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
+    catch { return ""; }
+  }
+  function drawQRs() {
+    const stu = new URL("index.html", location.href); stu.search = "?s=" + encodeURIComponent(S.s);
+    const obs = new URL("observer.html", location.href); obs.search = `?s=${encodeURIComponent(S.s)}&k=${encodeURIComponent(S.observerKey || "")}`;
+    $("#qrStudent").innerHTML = qrSvg(stu.href); $("#urlStudent").textContent = stu.href;
+    $("#qrObserver").innerHTML = qrSvg(obs.href); $("#urlObserver").textContent = obs.href;
+    $("#qrVote").innerHTML = qrSvg(stu.href);
+  }
+
+  /* ================= タブ ================= */
+  let tab = "setup";
+  function showTab(t) {
+    tab = t;
+    store.set("oreolive_monitor_tab", t);
+    $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+    $$("[data-pane]").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== t));
+    renderActive();
+  }
+  $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) showTab(b.dataset.tab); });
+  const TAB_KEYS = ["setup", "vote", "debate", "write", "results", "reply", "final"];
+  document.addEventListener("keydown", (e) => {
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || $("#appMon").classList.contains("hidden")) return;
+    if (/^[0-6]$/.test(e.key)) showTab(TAB_KEYS[+e.key]);
+    else if (e.key === " ") { e.preventDefault(); if (tab === "debate") debate.toggle(); else if (tab === "write") (wTimer.running ? wTimer.pause() : wTimer.start()); else if (tab === "reply") rpTimer.toggle(); }
+    else if (e.key === "ArrowRight" && tab === "debate") debate.next();
+    else if (e.key === "ArrowLeft" && tab === "debate") debate.prev();
+  });
+  $("#btnFull").addEventListener("click", () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); });
+
+  /* ================= 生徒画面のフェーズ ================= */
+  async function setPhase(ph) {
+    try { await API.phase(S.s, S.key, ph); D.phase = ph; renderFooter(); toast("生徒画面：" + { vote: "投票", wait: "待機", writing: "ライティング", closed: "終了" }[ph]); }
+    catch (e) { toast(e.message, true); }
+  }
+  $("#phaseSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setPhase(b.dataset.ph); });
+
+  /* ================= ポーリング ================= */
+  async function poll() {
+    try {
+      const res = await API.live(S.s, S.key, D.since);
+      D.votes = res.votes || [];
+      (res.subs || []).forEach((r) => { D.subs.set(r.id, r); D.since = Math.max(D.since, r.id); });
+      D.starCounts = res.starCounts || {};
+      D.summary = res.summary || null;
+      D.phase = res.phase;
+      D.ok = true;
+    } catch (e) { D.ok = false; }
+    renderFooter();
+    renderActive();
+  }
+  function renderFooter() {
+    $$("#phaseSeg button").forEach((b) => b.classList.toggle("on", b.dataset.ph === D.phase));
+    $("#fVotes").textContent = D.votes.length;
+    $("#fSubs").textContent = latestByStudent().size;
+    $("#fConn").textContent = D.ok ? "" : "⚠ 通信エラー（再試行中）";
+  }
+  function renderActive() {
+    if (tab === "vote") renderVote();
+    if (tab === "write") renderWrite();
+    if (tab === "results") renderResults();
+    if (tab === "reply") renderReply();
+  }
+
+  /* ================= 1 最初の考え ================= */
+  function hbars(c, keys, total) {
+    const max = Math.max(1, ...keys.map((k) => c[k] || 0));
+    return keys.map((k) => `<div class="hbar-row"><div class="lbl">${LABEL[k][0]}<small>${LABEL[k][1]}</small></div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${((c[k] || 0) / max) * 100}%;background:${COLORS[k]}"></div></div>
+      <div class="num">${c[k] || 0}</div></div>`).join("");
+  }
+  function renderVote() {
+    const c = counts(D.votes, "stance");
+    $("#voteBars").innerHTML = hbars(c, ["yes", "no", "unsure"]);
+    $("#voteN").textContent = D.votes.length;
+  }
+
+  /* ================= タイマー ================= */
+  function makeTimer(onTick, onEnd) {
+    let total = 0, left = 0, running = false, endAt = 0, iv = null;
+    function tick() {
+      left = Math.max(0, (endAt - Date.now()) / 1000);
+      if (left <= 0) { running = false; clearInterval(iv); onTick(0, total, false); onEnd && onEnd(); return; }
+      onTick(left, total, true);
+    }
+    return {
+      set(sec) { clearInterval(iv); total = left = sec; running = false; onTick(left, total, false); },
+      start() { if (running || left <= 0) return; running = true; endAt = Date.now() + left * 1000; clearInterval(iv); iv = setInterval(tick, 200); onTick(left, total, true); },
+      pause() { if (!running) return; left = Math.max(0, (endAt - Date.now()) / 1000); running = false; clearInterval(iv); onTick(left, total, false); },
+      toggle() { running ? this.pause() : this.start(); },
+      get running() { return running; }, get left() { return left; }, get total() { return total; },
+    };
+  }
+  let actx = null;
+  function beep(times = 3, freq = 880) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      for (let i = 0; i < times; i++) {
+        const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.32;
+        o.frequency.value = freq; o.connect(g); g.connect(actx.destination);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+        o.start(t); o.stop(t + 0.28);
+      }
+    } catch {}
+  }
+
+  /* ================= 2 ディベート ================= */
+  const debate = (() => {
+    const P = C.DEBATE_PHASES;
+    let i = 0, autoT = null;
+    const timer = makeTimer((left, total, running) => {
+      $("#dClock").textContent = fmt(left);
+      $("#dClock").classList.toggle("low", running && left <= 10);
+      $("#dProg").style.width = total ? ((total - left) / total) * 100 + "%" : "0";
+      $("#dToggle").textContent = running ? "一時停止" : "▶ スタート";
+    }, () => {
+      beep(3);
+      if ($("#autoNext").checked && i < P.length - 1) { clearTimeout(autoT); autoT = setTimeout(() => { go(i + 1); timer.start(); }, 3000); }
+    });
+    function go(n) {
+      clearTimeout(autoT);
+      i = Math.max(0, Math.min(P.length - 1, n));
+      const p = P[i];
+      $("#dPh").textContent = p.label;
+      $("#dWho").textContent = p.who;
+      const hint = /反論/.test(p.label) ? C.DEBATE_HINTS.rebut : p.side ? C.DEBATE_HINTS[p.side] : "";
+      $("#dHint").textContent = hint;
+      $("#dHint").classList.toggle("hidden", !hint);
+      $("#phaseList").innerHTML = P.map((q, k) => `<li data-i="${k}" class="${k < i ? "done" : k === i ? "cur" : ""}"><span>${esc(q.label)}</span><span class="t">${fmt(q.sec)}</span></li>`).join("");
+      timer.set(p.sec);
+    }
+    $("#phaseList").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) go(+li.dataset.i); });
+    $("#dToggle").onclick = () => { actx || beep(0); timer.toggle(); };
+    $("#dNext").onclick = () => go(i + 1);
+    $("#dPrev").onclick = () => go(i - 1);
+    $("#dReset").onclick = () => go(0);
+    go(0);
+    return { toggle: () => timer.toggle(), next: () => go(i + 1), prev: () => go(i - 1) };
+  })();
+
+  /* ================= 3 ライティング ================= */
+  const W_TOTAL = C.WRITING_MINUTES * 60;
+  const wTimer = makeTimer((left, total) => {
+    $("#wClock").textContent = fmt(left);
+    $("#wProg").style.width = ((total - left) / total) * 100 + "%";
+    const elapsed = total - left;
+    const ban = $("#wBanner");
+    if (left <= 0 && total) { ban.textContent = "Time's up! まだ送信していない人は、今すぐ送信しよう"; ban.classList.remove("hidden"); }
+    else if (elapsed >= C.SUBMIT_HINT_MINUTE * 60) { ban.textContent = "Submit now! 送信して、AI のフィードバックを読んで直そう"; ban.classList.remove("hidden"); }
+    else ban.classList.add("hidden");
+  }, () => beep(4, 660));
+  wTimer.set(W_TOTAL);
+  let hintBeeped = false;
+  setInterval(() => { if (wTimer.running && !hintBeeped && W_TOTAL - wTimer.left >= C.SUBMIT_HINT_MINUTE * 60) { hintBeeped = true; beep(2, 990); } }, 500);
+  $("#wStart").onclick = async () => { actx || beep(0); if (D.phase !== "writing") await setPhase("writing"); wTimer.start(); };
+  $("#wPause").onclick = () => wTimer.pause();
+  $("#wReset").onclick = () => { hintBeeped = false; wTimer.set(W_TOTAL); };
+  $("#wShowStance").onchange = renderWrite;
+
+  function renderWrite() {
+    const latest = [...latestByStudent().values()];
+    const students = new Set([...D.votes.map((v) => v.student), ...latest.map((r) => r.student)]);
+    $("#wN").textContent = latest.length;
+    $("#wD").textContent = students.size;
+    $("#wRe").textContent = [...D.subs.values()].filter((r) => r.version > 1).length;
+    const members = {}, done = {};
+    D.votes.forEach((v) => v.grp && (members[v.grp] = (members[v.grp] || 0) + 1));
+    latest.forEach((r) => r.grp && (done[r.grp] = (done[r.grp] || 0) + 1));
+    const gs = Array.from({ length: C.GROUPS }, (_, k) => String(k + 1));
+    $("#wGroups").innerHTML = gs.map((g) => { const m = Math.max(members[g] || 0, done[g] || 0); return `<div class="gchip ${m && done[g] >= m ? "full" : ""}">G${g}<b>${done[g] || 0}/${m || "–"}</b></div>`; }).join("");
+    const box = $("#wStance");
+    box.classList.toggle("hidden", !$("#wShowStance").checked);
+    const c = counts(latest, "stance"), n = latest.length || 1;
+    box.innerHTML = `<div class="stackbar">${["yes", "no"].filter((k) => c[k]).map((k) => `<div class="${k}" style="width:${(c[k] / n) * 100}%">${LABEL[k][0]} ${c[k]}</div>`).join("")}</div>`;
+  }
+
+  /* ================= 4 結果 ================= */
+  let rView = "flow";
+  $("#rTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; rView = b.dataset.r; $$("#rTabs button").forEach((x) => x.classList.toggle("on", x === b)); renderResults(); });
+  $("#btnSum").addEventListener("click", async () => {
+    const b = $("#btnSum"); b.disabled = true; b.textContent = "集約中…（20秒ほど）";
+    try { const res = await API.summarize(S.s, S.key); D.summary = res.summary; toast("集約しました"); renderResults(); }
+    catch (e) { toast(e.message, true); }
+    finally { b.disabled = false; b.textContent = D.summary ? "もう一度集約" : "AI で集約"; }
+  });
+
+  function stack(c, keys) {
+    const n = keys.reduce((a, k) => a + (c[k] || 0), 0) || 1;
+    return `<div class="stackbar">${keys.filter((k) => c[k]).map((k) => `<div class="${k}" style="width:${(c[k] / n) * 100}%" title="${LABEL[k][0]} ${c[k]}">${(c[k] / n) >= 0.08 ? `${LABEL[k][0]} ${c[k]}` : c[k]}</div>`).join("")}</div>`;
+  }
+  function starsByStudent() {
+    const per = {};
+    for (const r of D.subs.values()) { const n = D.starCounts[r.id] || 0; if (n) per[r.student] = (per[r.student] || 0) + n; }
+    return per;
+  }
+  function teacherPicks(latest) {
+    const per = starsByStudent();
+    return latest.filter((r) => per[r.student] && r.consent && r.flag === "ok").map((r) => ({ r, n: per[r.student] })).sort((a, b) => b.n - a.n).slice(0, 2);
+  }
+  function renderResults() {
+    const lm = latestByStudent(), latest = [...lm.values()];
+    $("#rFlow").classList.toggle("hidden", rView !== "flow");
+    $("#rReasons").classList.toggle("hidden", rView !== "reasons");
+    $("#rPicks").classList.toggle("hidden", rView !== "picks");
+    $("#sumInfo").textContent = D.summary ? `AI集約：${new Date(D.summary.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}（${D.summary.count}人分）` : "";
+    $("#btnSum").textContent = D.summary ? "もう一度集約" : "AI で集約";
+
+    if (rView === "flow") {
+      const before = counts(D.votes, "stance"), after = counts(latest, "stance");
+      const vmap = Object.fromEntries(D.votes.map((v) => [v.student, v.stance]));
+      const flow = {};
+      latest.forEach((r) => { const v = vmap[r.student]; if (v) flow[`${v}>${r.stance}`] = (flow[`${v}>${r.stance}`] || 0) + 1; });
+      const changed = (flow["yes>no"] || 0) + (flow["no>yes"] || 0);
+      const decided = (flow["unsure>yes"] || 0) + (flow["unsure>no"] || 0);
+      const chip = (k, txt) => `<div class="flow-chip">${txt} <b>${flow[k] || 0}</b> 人</div>`;
+      $("#rFlow").innerHTML = latest.length || D.votes.length ? `
+        <div class="flow-wrap">
+          <div class="legend"><span><i style="background:var(--yes)"></i>Yes</span><span><i style="background:var(--no)"></i>No</span><span><i style="background:var(--unsure)"></i>Not sure</span></div>
+          <div class="flow-row"><div class="lbl">授業の最初 <span class="muted small">（${D.votes.length}人）</span></div><div class="bar">${stack(before, ["yes", "no", "unsure"])}</div></div>
+          <div class="flow-row"><div class="lbl">ディベートの後（ライティング） <span class="muted small">（${latest.length}人）</span></div><div class="bar">${stack(after, ["yes", "no"])}</div></div>
+          <div><div class="ttl">考えが変わった人 <span class="huge" style="font-size:44px;color:var(--ink)">${changed}</span> 人　／　Not sure から決めた人 <span class="huge" style="font-size:44px;color:var(--ink)">${decided}</span> 人</div>
+          <div class="flow-chips">${chip("yes>no", "Yes → No")}${chip("no>yes", "No → Yes")}${chip("unsure>yes", "Not sure → Yes")}${chip("unsure>no", "Not sure → No")}</div></div>
+        </div>` : `<div class="empty">まだデータがありません</div>`;
+    }
+
+    if (rView === "reasons") {
+      const col = (stance) => {
+        const list = latest.filter((r) => r.stance === stance);
+        const c = counts(list, "reason_tag");
+        const rows = Object.entries(c).sort((a, b) => b[1] - a[1]);
+        const max = Math.max(1, ...rows.map((x) => x[1]));
+        const pts = D.summary ? D.summary[stance + "_points"] || [] : [];
+        return `<div class="reason-col card"><h3 style="color:${stance === "yes" ? "#174f93" : "#9a3a12"}">${LABEL[stance][0]} <span class="muted small" style="font-family:var(--font)">${list.length}人</span></h3>
+          ${rows.length ? rows.map(([t, n]) => { const L = C.REASON_LABELS[t] || [t, ""]; return `<div class="rbar"><div class="name">${esc(L[0])}<small>${esc(L[1])}</small></div><div class="n">${n}</div><div class="track"><div style="width:${(n / max) * 100}%;background:${COLORS[stance]}"></div></div></div>`; }).join("") : `<div class="empty">—</div>`}
+          ${pts.length ? `<div class="ttl" style="margin-top:14px">AI のまとめ</div><ol class="points">${pts.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>` : ""}
+        </div>`;
+      };
+      $("#rReasons").innerHTML = `<div class="reason-cols">${col("yes")}${col("no")}</div>
+        ${D.summary ? `<div class="common"><div class="ttl">Common ground — 両方に共通する考え</div><div class="en">${esc(D.summary.common_ground_en)}</div><div class="muted">${esc(D.summary.common_ground_ja)}</div></div>
+        <p class="muted" style="margin-top:12px">${esc(D.summary.overview_ja)}</p>` : `<p class="muted" style="margin-top:14px">「AI で集約」を押すと、それぞれの立場の主な理由と、両者に共通する考えが表示されます。</p>`}`;
+    }
+
+    if (rView === "picks") {
+      const card = (cls, src, text, why) => `<div class="card pick-card ${cls}"><div class="src">${src}</div><p class="txt">${esc(text)}</p>${why ? `<div class="why">${esc(why)}</div>` : ""}</div>`;
+      const cur = (p) => { if (!p) return null; const r = lm.get(p.student); return r ? oreo(r) : p.text; };
+      const aiPicks = D.summary ? [D.summary.pick_yes, D.summary.pick_no].filter(Boolean) : [];
+      const aiStudents = new Set(aiPicks.map((p) => p.student));
+      const starOf = starsByStudent();
+      const tp = teacherPicks(latest).filter(({ r }) => !aiStudents.has(r.student));
+      let html = "";
+      aiPicks.forEach((p) => {
+        const s = p === D.summary.pick_yes ? "yes" : "no";
+        const agree = starOf[p.student] ? `　<span class="badge" style="background:#fff4cc;color:#6b5200">参観の先生方も推薦 ⭐${starOf[p.student]}</span>` : "";
+        html += card(s, `AI が選んだ意見 — ${LABEL[s][0]}${agree}`, cur(p), p.why_ja);
+      });
+      tp.forEach(({ r, n }) => (html += card(r.stance, `参観の先生方が選んだ意見 — ${LABEL[r.stance][0]}（⭐${n}）`, oreo(r), "")));
+      $("#rPicks").innerHTML = html ? `<div class="picks">${html}</div>` : `<div class="empty">「AI で集約」を押すと代表意見が表示されます。参観の先生方の⭐もここに並びます。</div>`;
+    }
+  }
+
+  /* ================= 5 Reply Challenge ================= */
+  let replySide = "no";
+  $("#replyTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; replySide = b.dataset.side; $$("#replyTabs button").forEach((x) => x.classList.toggle("on", x === b)); renderReply(); });
+  function replyPick(side) {
+    const lm = latestByStudent();
+    const p = D.summary && D.summary["pick_" + side];
+    if (p) { const r = lm.get(p.student); return r ? oreo(r) : p.text; }
+    const tp = teacherPicks([...lm.values()]).find((x) => x.r.stance === side);
+    return tp ? oreo(tp.r) : "";
+  }
+  function renderReply() {
+    const text = replyPick(replySide);
+    const as = replySide === "no" ? "Yes" : "No";
+    $("#replyCard").innerHTML = text
+      ? `<div class="ttl">${replySide === "no" ? "No側" : "Yes側"}の代表意見 — あなたは <b>${as}</b> 側として返そう</div><p class="reply-text">${esc(text)}</p>`
+      : `<div class="empty">先に「結果」タブで AI で集約してください。</div>`;
+  }
+  const rpTimer = (() => {
+    let half = false;
+    const t = makeTimer((left, total, running) => {
+      $("#rpClock").textContent = fmt(left);
+      $("#rpPh").textContent = left > 30 || !total ? "Person 1" : "Person 2";
+      $("#rpToggle").textContent = running ? "一時停止" : "▶ スタート";
+      if (running && left <= 30 && !half) { half = true; beep(2, 990); }
+    }, () => beep(3));
+    t.set(60);
+    $("#rpToggle").onclick = () => { actx || beep(0); t.toggle(); };
+    $("#rpReset").onclick = () => { half = false; t.set(60); };
+    return { toggle: () => t.toggle() };
+  })();
+
+  /* ================= 準備タブのボタン ================= */
+  $("#btnCsv").onclick = async () => {
+    try {
+      const blob = await API.exportCsv(S.s, S.key);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = `oreo-live-${S.s}.csv`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) { toast(e.message, true); }
+  };
+  let clearArmed = 0;
+  $("#btnClear").onclick = async () => {
+    const b = $("#btnClear");
+    if (Date.now() - clearArmed > 4000) { clearArmed = Date.now(); b.textContent = "本当に削除する場合はもう一度押す"; setTimeout(() => (b.textContent = "このセッションのデータを削除"), 4000); return; }
+    try { await API.clear(S.s, S.key); D.subs.clear(); D.since = 0; D.summary = null; D.votes = []; toast("削除しました"); b.textContent = "このセッションのデータを削除"; poll(); }
+    catch (e) { toast(e.message, true); }
+  };
+  $("#btnSeed").onclick = async () => { await API.seed(S.s); toast("サンプルデータを入れました"); poll(); };
+
+  if ($("#inS").value && $("#inK").value && params.get("auto") === "1") openSession();
+})();
+</script>
+</body>
+</html>

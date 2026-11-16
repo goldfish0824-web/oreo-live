@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OREO Live — Student</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<style>
+  .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: rgba(252,252,251,0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 800; letter-spacing: 0.02em; color: var(--accent); }
+  .brand small { font-weight: 600; color: var(--ink-3); margin-left: 6px; }
+  .who { margin-left: auto; font-size: 14px; color: var(--ink-2); }
+  main { max-width: 780px; margin: 0 auto; padding: 22px 16px 80px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 0 0 12px; }
+  .topic { font-family: var(--font-en); font-size: 22px; font-weight: 700; color: var(--accent); margin: 0; }
+  .topic-ja { color: var(--ink-2); margin: 2px 0 0; font-size: 15px; }
+  .stack > * + * { margin-top: 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  /* 投票 */
+  .vote-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  .vote-btns button { min-height: 120px; border-radius: 18px; border: 2px solid var(--line); background: var(--surface); font-size: 24px; font-weight: 800; font-family: var(--font-en); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .vote-btns button span { font-size: 14px; font-weight: 600; font-family: var(--font); color: var(--ink-2); }
+  .vote-btns button[data-v="yes"].on { border-color: var(--yes); background: var(--yes-soft); color: #174f93; }
+  .vote-btns button[data-v="no"].on { border-color: var(--no); background: var(--no-soft); color: #9a3a12; }
+  .vote-btns button[data-v="unsure"].on { border-color: var(--unsure); background: var(--unsure-soft); }
+
+  /* 待機 */
+  .wait-hero { text-align: center; padding: 40px 18px; }
+  .wait-hero .big { font-size: 40px; font-weight: 800; font-family: var(--font-en); color: var(--accent); }
+
+  /* ライティング */
+  .stance-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stance-pick button { min-height: 64px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); font-size: 20px; font-weight: 800; font-family: var(--font-en); }
+  .stance-pick button small { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); font-family: var(--font); }
+  .stance-pick button[data-v="yes"].on { border-color: var(--yes); background: var(--yes-soft); }
+  .stance-pick button[data-v="no"].on { border-color: var(--no); background: var(--no-soft); }
+  .oreo-box { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px; }
+  .oreo-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .oreo-tag { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; background: var(--accent); font-family: var(--font-en); flex: none; }
+  .oreo-title { font-weight: 800; }
+  .oreo-hint { font-size: 13px; color: var(--ink-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+  .chip { border: 1px dashed #b9c6d8; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 4px 12px; font-size: 14px; font-family: var(--font-en); }
+  .wc-wrap { position: sticky; bottom: 0; background: rgba(244,243,239,0.96); padding: 12px 0 8px; border-top: 1px solid var(--line); }
+  .wc-bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 6px 0 10px; }
+  .wc-bar div { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width 0.2s; }
+  details.expr { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 10px 14px; }
+  details.expr summary { font-weight: 700; cursor: pointer; }
+  .expr-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-top: 8px; font-size: 15px; }
+  .expr-grid .en { font-weight: 600; }
+  label.consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink-2); }
+  label.consent input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+
+  /* フィードバック */
+  .grades { display: flex; gap: 10px; flex-wrap: wrap; }
+  .fb-block { border-left: 4px solid var(--line); padding: 4px 0 4px 14px; }
+  .fb-block h3 { font-size: 16px; margin: 0 0 6px; }
+  .fb-block p { margin: 0; }
+  .fb-block.good { border-color: var(--good); }
+  .fb-block.logic { border-color: var(--accent); }
+  .fb-block.fix { border-color: var(--fix); }
+  .fb-block.better { border-color: #c98500; }
+  .fb-block.challenge { border-color: var(--no); background: var(--no-soft); border-radius: 0 12px 12px 0; padding: 10px 14px; }
+  .fix-list, .better-list { list-style: none; padding: 0; margin: 0; }
+  .fix-list li, .better-list li { padding: 8px 0; border-bottom: 1px solid var(--surface-2); }
+  .fix-list li:last-child, .better-list li:last-child { border-bottom: 0; }
+  del { color: var(--fix); background: var(--fix-soft); text-decoration-thickness: 2px; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
+  ins { color: var(--good); background: var(--good-soft); text-decoration: none; font-weight: 700; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
+  .sugg { font-family: var(--font-en); font-weight: 600; }
+  .why { display: block; font-size: 14px; color: var(--ink-2); }
+  .note { background: #fff6db; border: 1px solid #ecd9a0; border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(244,243,239,0.9); z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 20px; }
+  .spinner { width: 54px; height: 54px; border-radius: 50%; border: 5px solid var(--accent-soft); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 520px) { .vote-btns { grid-template-columns: 1fr; } .vote-btns button { min-height: 72px; } .topic { font-size: 19px; } }
+</style>
+</head>
+<body>
+<div id="demoBanner" class="demo-banner hidden">デモモード：AIは使わず、サンプルの評価を表示します（config.js に WORKER_URL を設定すると本番になります）</div>
+<header class="top">
+  <div class="brand">OREO Live<small>Student</small></div>
+  <div class="who" id="who" title="組・番号を変える場合はタップ" style="cursor:pointer"></div>
+</header>
+
+<main>
+  <!-- ログイン -->
+  <section id="v-login" class="stack hidden">
+    <div>
+      <p class="topic" data-topic></p>
+      <p class="topic-ja" data-topic-ja></p>
+    </div>
+    <div class="card stack">
+      <h2>はじめに</h2>
+      <div id="codeRow">
+        <label class="field-label" for="inCode">セッションコード（モニターに表示）</label>
+        <input id="inCode" type="text" inputmode="latin" autocomplete="off" placeholder="例：1210">
+      </div>
+      <div class="grid3">
+        <div><label class="field-label" for="inCls">組</label><select id="inCls"></select></div>
+        <div><label class="field-label" for="inNum">番号</label><select id="inNum"></select></div>
+        <div><label class="field-label" for="inGrp">グループ</label><select id="inGrp"></select></div>
+      </div>
+      <p class="small muted">名前は入力しません。組・番号・グループ番号だけを使います。</p>
+      <button id="btnStart" class="btn btn-primary">はじめる</button>
+    </div>
+  </section>
+
+  <!-- 最初の投票 -->
+  <section id="v-vote" class="stack hidden">
+    <p class="small muted">Step 1：今のあなたの考え</p>
+    <div>
+      <p class="topic" data-topic></p>
+      <p class="topic-ja" data-topic-ja></p>
+    </div>
+    <div class="vote-btns" id="voteBtns">
+      <button data-v="yes">Yes<span>受け入れるべき</span></button>
+      <button data-v="no">No<span>増やすべきではない</span></button>
+      <button data-v="unsure">Not sure<span>まだわからない</span></button>
+    </div>
+    <p id="voteMsg" class="muted"></p>
+  </section>
+
+  <!-- ディベート中 -->
+  <section id="v-wait" class="hidden">
+    <div class="card wait-hero">
+      <div class="big">Debate time!</div>
+      <p>タブレットを置いて、ディベートに集中しよう。</p>
+      <p class="muted small">ライティングが始まると、この画面が自動で切り替わります。</p>
+    </div>
+  </section>
+
+  <!-- ライティング -->
+  <section id="v-write" class="stack hidden">
+    <p class="small muted">Step 2：ディベートを踏まえて、自分の意見を OREO で書こう</p>
+    <div>
+      <p class="topic" data-topic></p>
+      <p class="topic-ja" data-topic-ja></p>
+    </div>
+    <div id="rewriteNote" class="note hidden"></div>
+    <div class="card stack">
+      <div>
+        <span class="field-label">あなたの本当の意見は？<span class="muted small">（ディベートで担当した立場と違ってもOK）</span></span>
+        <div class="stance-pick" id="stancePick">
+          <button data-v="yes">Yes<small>受け入れるべき</small></button>
+          <button data-v="no">No<small>増やすべきではない</small></button>
+        </div>
+      </div>
+    </div>
+    <div id="oreoBoxes" class="stack"></div>
+    <details class="expr">
+      <summary>使える表現（資料1）</summary>
+      <div class="expr-grid" id="exprGrid"></div>
+    </details>
+    <label class="consent"><input type="checkbox" id="inConsent" checked>この意見を、名前を出さずにモニターで紹介してもよい</label>
+    <div class="wc-wrap">
+      <div class="row"><div><b id="wc" class="en" style="font-size:20px">0</b> words <span class="muted small">／ 目標 <span id="wcTarget"></span> 語</span></div><div class="spacer"></div><div class="small muted" id="remainTxt"></div></div>
+      <div class="wc-bar"><div id="wcBar"></div></div>
+      <button id="btnSubmit" class="btn btn-primary" style="width:100%">送信して AI のフィードバックを受け取る</button>
+    </div>
+  </section>
+
+  <!-- フィードバック -->
+  <section id="v-feedback" class="stack hidden"></section>
+
+  <!-- 終了 -->
+  <section id="v-closed" class="stack hidden">
+    <div class="card wait-hero">
+      <div class="big">Thank you!</div>
+      <p>今日の授業はここまでです。</p>
+    </div>
+    <div class="card">
+      <h2>Next question</h2>
+      <p class="en" id="finalQ" style="font-size:19px;font-weight:700;white-space:pre-line;margin:0"></p>
+      <p class="muted" id="finalQja"></p>
+    </div>
+    <div id="closedFb"></div>
+  </section>
+</main>
+
+<div id="loading" class="overlay hidden">
+  <div class="spinner"></div>
+  <div><b>AI があなたの意見を読んでいます…</b><br><span class="muted small">10〜20秒ほどかかります。画面を閉じずに待ってください。</span></div>
+</div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+(function () {
+  const C = window.OREO_CONFIG, API = window.OREO_API;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  function toast(msg, isErr) {
+    const el = document.createElement("div");
+    el.className = "toast" + (isErr ? " err" : "");
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), isErr ? 5200 : 2600);
+  }
+
+  const OREO = [
+    { key: "opinion", tag: "O", title: "Opinion 意見", hint: "あなたの立場をはっきり書こう", chips: ["I believe that Japan should ", "I don't think Japan should ", "In my opinion, "] },
+    { key: "reason", tag: "R", title: "Reason 理由", hint: "いちばん大事な理由を1つ", chips: ["First of all, ", "This is because ", "The main reason is that "] },
+    { key: "example", tag: "E", title: "Example 具体例", hint: "数字・事実・例で理由を支えよう", chips: ["For example, ", "According to the data, ", "In fact, ", "Moreover, "] },
+    { key: "conclusion", tag: "O", title: "Opinion 意見（まとめ）", hint: "もう一度、自分の意見をまとめよう", chips: ["Therefore, ", "For these reasons, ", "That is why "] },
+  ];
+
+  const params = new URLSearchParams(location.search);
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, last: null, editing: false, stance: "", view: "" };
+  const sid = () => `${st.s}_${st.cls}-${st.num}`;
+
+  /* ---------- 初期化 ---------- */
+  if (API.demo) $("#demoBanner").classList.remove("hidden");
+  $$("[data-topic]").forEach((e) => (e.textContent = C.TOPIC));
+  $$("[data-topic-ja]").forEach((e) => (e.textContent = C.TOPIC_JA));
+  $("#finalQ").textContent = C.FINAL_QUESTION;
+  $("#finalQja").textContent = C.FINAL_QUESTION_JA;
+  $("#wcTarget").textContent = C.TARGET_WORDS;
+  $("#inCls").innerHTML = C.CLASSES.map((c) => `<option value="${esc(c)}">${esc(c)}組</option>`).join("");
+  $("#inNum").innerHTML = Array.from({ length: C.MAX_NUMBER }, (_, i) => `<option value="${i + 1}">${i + 1}番</option>`).join("");
+  $("#inGrp").innerHTML = `<option value="">—</option>` + Array.from({ length: C.GROUPS }, (_, i) => `<option value="${i + 1}">G${i + 1}</option>`).join("");
+  $("#exprGrid").innerHTML = C.EXPRESSIONS.map(([en, ja]) => `<span class="en">${esc(en)}</span><span class="muted">${esc(ja)}</span>`).join("");
+
+  $("#oreoBoxes").innerHTML = OREO.map(
+    (a) => `<div class="oreo-box">
+      <div class="oreo-head"><span class="oreo-tag">${a.tag}</span><div><div class="oreo-title">${esc(a.title)}</div><div class="oreo-hint">${esc(a.hint)}</div></div></div>
+      <div class="chips">${a.chips.map((c) => `<button type="button" class="chip" data-for="${a.key}" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("")}</div>
+      <textarea id="ta-${a.key}" rows="${a.key === "example" ? 4 : 2}" spellcheck="false" autocapitalize="sentences" placeholder="Write in English."></textarea>
+    </div>`
+  ).join("");
+
+  const saved = store.get("oreolive_login");
+  if (saved) {
+    if (!st.s && saved.s) st.s = saved.s;
+    if (saved.s === st.s) {
+      $("#inCls").value = saved.cls;
+      $("#inNum").value = saved.num;
+      $("#inGrp").value = saved.grp || "";
+    }
+  }
+  $("#inCode").value = st.s;
+  if (params.get("s")) $("#codeRow").classList.add("hidden");
+
+  /* ---------- 画面の切り替え ---------- */
+  function show(view) {
+    if (st.view === view) return;
+    st.view = view;
+    ["login", "vote", "wait", "write", "feedback", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
+    window.scrollTo(0, 0);
+  }
+  function render() {
+    if (!st.phase) return show("login");
+    $("#who").textContent = `${st.cls}組${st.num}番${st.grp ? " · G" + st.grp : ""}`;
+    if (st.phase === "vote") {
+      $$("#voteBtns button").forEach((b) => b.classList.toggle("on", st.mine && st.mine.vote === b.dataset.v));
+      $("#voteMsg").textContent = st.mine && st.mine.vote ? "送信しました。先生の指示を待ってください（選び直すこともできます）。" : "";
+      return show("vote");
+    }
+    if (st.phase === "wait") return show("wait");
+    if (st.phase === "writing") {
+      if (st.last && !st.editing) { renderFeedback($("#v-feedback"), true); return show("feedback"); }
+      updateWriteMeta();
+      return show("write");
+    }
+    if (st.phase === "closed") {
+      const box = $("#closedFb");
+      if (st.last) renderFeedback(box, false); else box.innerHTML = "";
+      return show("closed");
+    }
+  }
+
+  /* ---------- ログイン ---------- */
+  $("#btnStart").addEventListener("click", async () => {
+    const s = ($("#inCode").value || "").trim().toUpperCase();
+    if (!s) return toast("セッションコードを入力してください", true);
+    const btn = $("#btnStart");
+    btn.disabled = true;
+    try {
+      const res = await API.state(s, $("#inCls").value, $("#inNum").value);
+      Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine });
+      store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp });
+      restoreLocal();
+      render();
+      startPolling();
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  $("#who").addEventListener("click", () => {
+    if (st.view === "write" || st.view === "vote") { st.phase = null; st.view = ""; render(); }
+  });
+
+  function restoreLocal() {
+    const d = store.get("oreolive_draft_" + sid());
+    if (d) {
+      OREO.forEach((a) => ($("#ta-" + a.key).value = d[a.key] || ""));
+      setStance(d.stance || "");
+      if (typeof d.consent === "boolean") $("#inConsent").checked = d.consent;
+    }
+    st.last = store.get("oreolive_last_" + sid());
+    updateWC();
+  }
+
+  /* ---------- 状態の取得（5秒ごと） ---------- */
+  let timer = null;
+  function startPolling() {
+    clearInterval(timer);
+    timer = setInterval(async () => {
+      if (!st.phase) return;
+      try {
+        const res = await API.state(st.s, st.cls, st.num);
+        const changed = res.phase !== st.phase;
+        st.mine = res.mine || st.mine;
+        st.phase = res.phase;
+        if (changed) { st.view = ""; render(); }
+        else if (st.phase === "vote") render();
+      } catch (e) { /* 一時的な通信エラーは無視して次回再試行 */ }
+    }, 5000);
+  }
+
+  /* ---------- 投票 ---------- */
+  $("#voteBtns").addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    $$("#voteBtns button").forEach((x) => (x.disabled = true));
+    try {
+      await API.vote({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: b.dataset.v });
+      st.mine = Object.assign({}, st.mine, { vote: b.dataset.v });
+      render();
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      $$("#voteBtns button").forEach((x) => (x.disabled = false));
+    }
+  });
+
+  /* ---------- ライティング ---------- */
+  function setStance(v) {
+    st.stance = v;
+    $$("#stancePick button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  }
+  $("#stancePick").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    setStance(b.dataset.v);
+    saveDraft();
+  });
+  $("#oreoBoxes").addEventListener("click", (ev) => {
+    const c = ev.target.closest(".chip");
+    if (!c) return;
+    const ta = $("#ta-" + c.dataset.for);
+    const text = c.dataset.text;
+    const start = ta.selectionStart ?? ta.value.length, end = ta.selectionEnd ?? ta.value.length;
+    const before = ta.value.slice(0, start), after = ta.value.slice(end);
+    const pad = before && !/\s$/.test(before) ? " " : "";
+    ta.value = before + pad + text + after;
+    const pos = (before + pad + text).length;
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    onInput();
+  });
+  $("#oreoBoxes").addEventListener("input", onInput);
+  $("#inConsent").addEventListener("change", saveDraft);
+  function onInput() { updateWC(); saveDraft(); }
+  function values() { return Object.fromEntries(OREO.map((a) => [a.key, $("#ta-" + a.key).value.trim()])); }
+  function countWords(t) { return (String(t).match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) || []).length; }
+  function updateWC() {
+    const n = countWords(Object.values(values()).join(" "));
+    $("#wc").textContent = n;
+    $("#wcBar").style.width = Math.min(100, (n / C.TARGET_WORDS) * 100) + "%";
+    return n;
+  }
+  function saveDraft() { if (st.cls) store.set("oreolive_draft_" + sid(), Object.assign(values(), { stance: st.stance, consent: $("#inConsent").checked })); }
+  function remaining() {
+    const used = Math.max(st.mine ? st.mine.submissions || 0 : 0, st.last ? st.last.version : 0);
+    const max = (st.mine && st.mine.max) || C.MAX_SUBMISSIONS;
+    return { used, left: Math.max(0, max - used), max };
+  }
+  function updateWriteMeta() {
+    const r = remaining();
+    $("#remainTxt").textContent = `提出 あと${r.left}回`;
+    $("#btnSubmit").disabled = r.left <= 0;
+    const note = $("#rewriteNote");
+    if (r.used > 0) {
+      note.innerHTML = st.last
+        ? `書き直しモードです（${r.used}回提出済み）。フィードバックを参考に直して、もう一度送信しよう。<button type="button" class="btn btn-sm btn-ghost" id="backFb">← フィードバックに戻る</button>`
+        : `この端末以外ですでに${r.used}回提出しています。書き直して再提出できます。`;
+      note.classList.remove("hidden");
+      const back = $("#backFb");
+      if (back) back.onclick = () => { st.editing = false; st.view = ""; render(); };
+    } else note.classList.add("hidden");
+  }
+
+  $("#btnSubmit").addEventListener("click", async () => {
+    if (!st.stance) return toast("まず Yes か No を選ぼう", true);
+    const v = values();
+    if (updateWC() < 5) return toast("英文をもう少し書いてから送信しよう", true);
+    if (!v.opinion) return toast("O（Opinion）の欄を書こう", true);
+    const btn = $("#btnSubmit");
+    btn.disabled = true;
+    $("#loading").classList.remove("hidden");
+    try {
+      const res = await API.submit(Object.assign({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, consent: $("#inConsent").checked }, v));
+      st.last = { version: res.version, remaining: res.remaining, words: res.words, feedback: res.feedback, text: v, stance: st.stance };
+      st.mine = Object.assign({}, st.mine, { submissions: res.version });
+      store.set("oreolive_last_" + sid(), st.last);
+      st.editing = false;
+      st.view = "";
+      render();
+    } catch (e) {
+      toast(e.message, true);
+      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.phase = r.phase; st.view = ""; render(); } catch {} }
+    } finally {
+      $("#loading").classList.add("hidden");
+      btn.disabled = remaining().left <= 0;
+    }
+  });
+
+  /* ---------- フィードバック表示 ---------- */
+  function renderFeedback(target, allowRewrite) {
+    const L = st.last, fb = L.feedback || {};
+    const sc = fb.scores || {};
+    const g = (label, v) => `<div class="grade g-${esc(v)}"><b>${esc(v || "-")}</b><span>${label}</span></div>`;
+    const flagNote = {
+      inappropriate: "人ではなく「政策」について論じよう。根拠となるデータや事実は何だろう？",
+      off_topic: "今日のテーマ（日本の難民受け入れ）について書けているか、もう一度確認しよう。",
+      japanese_mixed: "日本語の部分は、下の「もっと良い表現」を参考に英語にしてみよう。",
+    }[fb.flag];
+    const r = remaining();
+    const txt = L.text || {};
+    target.innerHTML = `
+      ${fb.demo ? `<div class="note">デモ用のサンプル評価です（AIは使っていません）。</div>` : ""}
+      <div class="row"><h2 style="margin:0">AI からのフィードバック</h2><span class="badge">Version ${esc(L.version)}</span><span class="badge ${esc(L.stance)}">${L.stance === "yes" ? "Yes" : "No"}</span><span class="badge">${esc(L.words)} words</span></div>
+      <div class="grades">${g("論理（OREO）", sc.logic)}${g("文法", sc.grammar)}${g("語彙", sc.vocabulary)}</div>
+      ${flagNote ? `<div class="note">${esc(flagNote)}</div>` : ""}
+      <div class="fb-block good"><h3>いいところ</h3><p>${esc(fb.good_point)}</p></div>
+      <div class="fb-block logic"><h3>論理（OREO）をもっと強くするには</h3><p>${esc(fb.logic_comment)}</p></div>
+      <div class="fb-block fix"><h3>文法の修正</h3>${
+        (fb.corrections || []).length
+          ? `<ul class="fix-list">${fb.corrections.map((c) => `<li><del>${esc(c.original)}</del> → <ins>${esc(c.corrected)}</ins><span class="why">${esc(c.why)}</span></li>`).join("")}</ul>`
+          : `<p class="muted">大きな誤りはありませんでした。</p>`
+      }</div>
+      <div class="fb-block better"><h3>もっと良い表現</h3>${
+        (fb.better_expressions || []).length
+          ? `<ul class="better-list">${fb.better_expressions.map((b) => `<li>${b.original ? `<span class="en muted">${esc(b.original)}</span> → ` : ""}<span class="sugg">${esc(b.suggestion)}</span><span class="why">${esc(b.why)}</span></li>`).join("")}</ul>`
+          : `<p class="muted">—</p>`
+      }</div>
+      ${fb.challenge && fb.challenge.en ? `<div class="fb-block challenge"><h3>反対側からの問い</h3><p class="en" style="font-weight:700;font-size:18px">${esc(fb.challenge.en)}</p><p>${esc(fb.challenge.ja)}</p><p class="small muted" style="margin-top:6px">この問いへの答えを Example に1文足すと、さらに説得力が増します。</p></div>` : ""}
+      <details class="expr"><summary>送信した英文を見る</summary><p class="en" style="margin:8px 0 0">${esc([txt.opinion, txt.reason, txt.example, txt.conclusion].filter(Boolean).join(" "))}</p></details>
+      <p class="small muted">AI の評価にはばらつきがあります。参考にして、どこを直すかは自分で決めよう。</p>
+      ${allowRewrite ? (r.left > 0 ? `<button class="btn btn-primary" id="btnRewrite" style="width:100%">書き直して再提出する（あと${r.left}回）</button>` : `<p class="muted">提出回数の上限に達しました。よく頑張りました！</p>`) : ""}
+    `;
+    const rw = target.querySelector("#btnRewrite");
+    if (rw) rw.onclick = () => { st.editing = true; st.view = ""; render(); };
+  }
+
+  /* ---------- 自動ログイン ---------- */
+  if (saved && saved.s && saved.s === st.s && saved.cls) {
+    API.state(st.s, saved.cls, saved.num)
+      .then((res) => {
+        Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", phase: res.phase, mine: res.mine });
+        restoreLocal();
+        render();
+        startPolling();
+      })
+      .catch(() => render());
+  } else render();
+})();
+</script>
+</body>
+</html>
