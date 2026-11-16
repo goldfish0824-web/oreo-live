@@ -224,7 +224,10 @@
         id: ++db.seq, session: se.code, student: st, grp: String(p.grp || ""), version: prev.length + 1, stance: p.stance,
         opinion: p.opinion, reason: p.reason, example: p.example, conclusion: p.conclusion, words: w, consent: !!p.consent,
         logic: fb.scores.logic, grammar: fb.scores.grammar, vocab: fb.scores.vocabulary, reason_tag: fb.reason_tag,
-        summary_en: fb.summary_en, flag: fb.flag, feedback: fb, at: Date.now(),
+        summary_en: fb.summary_en, flag: fb.flag, feedback: fb,
+        // 本番では Worker が AI に和訳を頼む（参観者画面だけに出す）。デモでは訳せないので注意書きだけ入れる
+        translation: { opinion: "（デモモードでは和訳を作りません。本番では、ここに AI の参考訳が出ます）", reason: "", example: "", conclusion: "" },
+        at: Date.now(),
       };
       db.subs.push(row);
       save(db);
@@ -372,8 +375,35 @@
           ["I think Japan should not accept more refugees.", "Many peoples worry about it.", "Some people feel anxious because they don't know about refugees well.", "First, Japan should teach people about refugees."],
         ],
       };
+      // 参観者画面に出す和訳（本番では AI の参考訳。誤りは直さずに訳す）
+      const samplesJa = {
+        yes: [
+          ["日本はもっと難民を受け入れるべきだと思う。", "まず第一に、日本は豊かで平和な国として、人道的な義務がある。", "例えば、約1億1780万人が家を追われたが、日本が2025年に難民と認めたのは187人だけだった。", "だから、緒方さんのように、日本は人の命を第一にすべきだ。"],
+          ["私の意見では、日本はもっと難民を受け入れるべきだ。", "なぜなら、日本は高齢化社会のため、人手不足に直面しているからだ。", "難民が日本語を学んで仕事に就ければ、私たちの社会に貢献できる。今、多くの会社が働き手を必要としている。", "これらの理由から、難民を受け入れることは日本と難民の両方にとって良いことだ。"],
+          ["日本はもっと難民を受け入れるべきだと思う。", "日本は国際社会の一員だ。", "ドイツは約270万人の難民を受け入れている。日本は世界のためにもっとするべきだ。", "だから日本はもっと受け入れるべきだ。"],
+          ["日本はもっと難民を受け入れるべきだと思う。", "主な理由は、ほかの文化の人々と共に生きることを学べるからだ。", "緒方さんは、21世紀は共存と相互依存の時代だと言った。", "だから、日本は扉を開き、難民と共存すべきだ。"],
+        ],
+        no: [
+          ["今すぐ日本がもっと多くの難民を受け入れるべきだとは思わない。", "なぜなら、日本にはまだしっかりした支援の仕組みがないからだ。", "例えば、難民には住まいや日本語の授業、職業訓練が必要だが、教える人や職員が足りない。", "だから、日本はまず支援の仕組みを良くするべきだ。"],
+          ["私の意見では、日本は今、これ以上難民を受け入れるべきではない。", "主な理由は、財政的な負担だ。", "日本はすでに高齢化社会など多くの問題を抱えていて、年金や医療に多くのお金が必要だ。", "その代わりに、日本は UNHCR にお金を出すことで難民を助けられる。"],
+          ["日本がもっと難民を受け入れるべきだとは思わない。", "難民は言葉の壁にぶつかるかもしれない。", "日本語は難しい言語で、彼らは日本の社会で孤立していると感じるかもしれない。", "だから日本は別の方法で彼らを助けるべきだ。"],
+          ["日本はこれ以上難民を受け入れるべきではないと思う。", "多くの人がそれを心配している。", "難民のことをよく知らないので、不安に感じる人もいる。", "まず、日本は人々に難民について教えるべきだ。"],
+        ],
+      };
       const konbini = topicOf(se) === "konbini";
       if (konbini) {
+        samplesJa.yes = [
+          ["コンビニは24時間営業を続けるべきだと思う。", "まず第一に、遅くまで働く人にとってとても便利だ。", "例えば、私の父は午後11時に帰宅し、よくコンビニで夕食を買う。", "だから、さまざまな生活スタイルの人のために営業を続けるべきだ。"],
+          ["私の意見では、コンビニは24時間営業を続けるべきだ。", "なぜなら、緊急のときに私たちを助けてくれるからだ。", "去年大きな台風が来たとき、人々は夜でも水や食べ物を買えた。", "これらの理由から、いつでも開いている店が必要だ。"],
+          ["コンビニは24時間営業を続けるべきだと思う。", "主な理由は、夜に人々が安心できることだ。", "家の近くの道は暗いが、部活から帰るとき、店の明かりがあると安心できる。", "だから営業を続けるべきだ。"],
+          ["コンビニは営業を続けるべきだと思う。", "店はもっとお金を稼げるし、人々に仕事を与えられる。", "昼間に授業があるので、夜に働きたい大学生もいる。", "だから、24時間営業の店は私たちの町にとって良いものだ。"],
+        ];
+        samplesJa.no = [
+          ["コンビニが24時間営業を続けるべきだとは思わない。", "なぜなら、日本は人手不足だからだ。", "例えば、駅の近くの店は十分な店員を見つけられず、オーナーが1日12時間以上働いている。", "だから、店は夜に閉めるべきだ。"],
+          ["私の意見では、コンビニは24時間営業を続けるべきではない。", "主な理由は、夜勤が働く人の健康に悪い影響を与えることだ。", "私のいとこは1年間夜に働いていたが、いつも疲れていて、よく眠れなかった。", "これらの理由から、店は夜に閉めるべきだ。"],
+          ["店が24時間営業を続けるべきだとは思わない。", "たくさんのエネルギーを無駄にする。", "客が少ないときでも、照明やエアコンが一晩中ついている。", "だから、夜に閉めればエネルギーを節約できる。"],
+          ["コンビニは夜に閉めるべきだと思う。", "夜遅くは客が少ない。", "私の町では、真夜中を過ぎると店にほとんど人がいない。", "だから、営業を続ける必要はない。"],
+        ];
         samples.yes = [
           ["I believe convenience stores should stay open 24 hours.", "First of all, they are very convenient for people who work late.", "For example, my father comes home at 11 p.m., and he often buys dinner at a convenience store.", "Therefore, they should stay open for people with different lifestyles."],
           ["In my opinion, convenience stores should stay open 24 hours.", "This is because they help us in an emergency.", "When a big typhoon came last year, people could buy water and food at night.", "For these reasons, we need stores that are always open."],
@@ -411,6 +441,8 @@
           const stance = n % 10 === 3 ? (first === "yes" ? "no" : "yes") : first === "unsure" ? (n % 2 ? "yes" : "no") : first;
           const t = samples[stance][n % 4];
           const p = { stance, opinion: t[0], reason: t[1], example: t[2], conclusion: t[3] };
+          const tj = samplesJa[stance][n % 4];
+          const translation = { opinion: tj[0], reason: tj[1], example: tj[2], conclusion: tj[3] };
           const versions = n % 4 === 0 ? 2 : 1;
           for (let v = 1; v <= versions; v++) {
             const w = words(oreo(p));
@@ -419,7 +451,7 @@
             db.subs.push({
               id: ++db.seq, session: se.code, student, grp, version: v, stance, ...p, words: w, consent: n % 6 !== 5,
               logic: fb.scores.logic, grammar: fb.scores.grammar, vocab: fb.scores.vocabulary, reason_tag: fb.reason_tag,
-              summary_en: fb.summary_en, flag: "ok", feedback: fb, at: Date.now() - (30 - n) * 20000,
+              summary_en: fb.summary_en, flag: "ok", feedback: fb, translation, at: Date.now() - (30 - n) * 20000,
             });
           }
         }
