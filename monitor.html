@@ -35,7 +35,9 @@
   footer.ctrl .stat b { color: var(--cream); font-family: var(--font-en); font-size: 16px; }
 
   /* 準備 */
-  .topic-row { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; }
+  details.adv { margin-top: 12px; }
+  details.adv summary { cursor: pointer; color: var(--ink-3); font-size: 13px; font-weight: 600; width: fit-content; }
+  .topic-row { margin-top: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; }
   .shift { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--pop); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; }
   .shift .en { font-size: clamp(18px, 1.8vw, 28px); font-weight: 800; }
   .flow-wrap.three { gap: 14px; }
@@ -165,11 +167,15 @@
     <section class="pane" data-pane="setup">
       <div class="ttl">授業の準備</div>
       <div class="row"><span class="code-big" id="codeShow"></span><span class="muted small" id="modelShow"></span></div>
-      <div class="row topic-row">
-        <label class="field-label" for="selTopic" style="margin:0">トピック</label>
-        <select id="selTopic" style="width:auto;min-width:300px"></select>
-        <span class="small muted">投票や提出が1件でも入ると変えられません。練習は、本番と別のセッションコードで行ってください。</span>
-      </div>
+      <!-- トピックの切り替え。ふだんは閉じてあり、データが1件でも入ったセッションでは枠ごと出さない（本番のモニターに選択肢を映さないため） -->
+      <details class="adv hidden" id="advBox">
+        <summary>詳細設定</summary>
+        <div class="row topic-row">
+          <label class="field-label" for="selTopic" style="margin:0">トピック</label>
+          <select id="selTopic" style="width:auto;min-width:300px"></select>
+          <span class="small muted">投票や提出が1件でも入ると変えられなくなり、この欄も表示されなくなります。</span>
+        </div>
+      </details>
       <div class="qr-grid">
         <div class="card qr-card"><div class="ttl">生徒用</div><div class="qr" id="qrStudent"></div><p class="url" id="urlStudent"></p></div>
         <div class="card qr-card"><div class="ttl">参観者用（指導案に貼付）</div><div class="qr" id="qrObserver"></div><p class="url" id="urlObserver"></p></div>
@@ -445,6 +451,7 @@
       D.starCounts = res.starCounts || {};
       D.summary = res.summary || null;
       D.phase = res.phase;
+      D.loaded = true;
       if (res.topic && res.topic !== D.topic) applyTopic(res.topic);
       D.ok = true;
     } catch (e) { D.ok = false; }
@@ -453,6 +460,10 @@
   }
   function renderFooter() {
     $$("#phaseSeg button").forEach((b) => b.classList.toggle("on", b.dataset.ph === D.phase));
+    // データが入ったセッションでは、トピックの切り替え欄を出さない（最初の取得が済むまでも出さない）
+    const empty = D.loaded && !D.votes.length && !D.prevotes.length && !D.subs.size;
+    $("#advBox").classList.toggle("hidden", !empty);
+    if (!empty) $("#advBox").open = false;
     $("#fVotes").textContent = D.votes.length;
     $("#fPre").textContent = D.prevotes.length;
     $("#fPreWrap").classList.toggle("hidden", !D.prevotes.length && D.phase !== "pre");
