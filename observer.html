@@ -11,46 +11,49 @@
   .top .brand { font-size: 18px; }
   .login .brand { font-size: 22px; }
   .login .brand small { background: var(--surface-2); color: var(--ink-2); }
-  .stats { display: flex; gap: 16px; font-size: 14px; color: rgba(251,247,238,0.62); }
+  .stats { display: flex; gap: 16px; font-size: 14px; color: rgba(251,247,238,0.62); flex-wrap: wrap; }
   .stats b { color: var(--cream); font-family: var(--font-en); font-size: 17px; }
   .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
   .filters .seg button { padding: 6px 14px; font-size: 14px; }
-  main { max-width: 980px; margin: 0 auto; padding: 16px 14px 60px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 16px 14px 60px; }
   details.guide { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--pop); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 18px; margin-bottom: 16px; }
   details.guide summary { font-weight: 800; cursor: pointer; color: var(--ink); }
   details.guide ol { margin: 8px 0 4px; padding-left: 1.3em; }
-  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
-  .sub { display: flex; flex-direction: column; gap: 10px; border-top: 6px solid var(--line); transition: transform 0.15s, box-shadow 0.15s; }
-  .sub:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-  .sub.yes { border-top-color: var(--yes); }
-  .sub.no { border-top-color: var(--no); }
-  .sub .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 14px; }
-  .sub .who { font-weight: 800; }
-  .oreo-lines { margin: 0; display: grid; grid-template-columns: 28px 1fr; gap: 4px 8px; font-family: var(--font-en); font-size: 15.5px; line-height: 1.5; }
-  .oreo-lines dt { width: 24px; height: 24px; border-radius: 50%; background: var(--cookie); color: var(--cream); font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
-  .oreo-lines dd { margin: 0; }
-  .sub .tr { display: block; font-family: var(--font); font-size: 13.5px; line-height: 1.55; color: var(--ink-2); margin: 2px 0 0; }
-  body.no-tr .sub .tr { display: none; }
-  .pre-line { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; font-size: 14px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-  .pre-line b { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
-  .grades-mini { display: flex; gap: 6px; }
-  .gm { font-size: 13px; padding: 3px 9px; border-radius: 8px; background: var(--surface-2); font-weight: 800; }
-  .gm.g-A { background: #e3f3ea; color: #1f7a4d; } .gm.g-B { background: #e6ecf4; color: #1f3a5f; } .gm.g-C { background: #f9eeda; color: #8a5a00; } .gm.g-D { background: #fbe9e7; color: #b3261e; }
-  .delta { font-size: 13px; color: var(--good); font-weight: 700; }
-  details.fb { border-top: 1px solid var(--surface-2); padding-top: 8px; font-size: 14.5px; }
-  details.fb summary { cursor: pointer; font-weight: 700; color: var(--ink-2); }
-  details.fb h4 { margin: 10px 0 2px; font-size: 13px; color: var(--ink-2); }
-  details.fb p, details.fb ul { margin: 0; }
-  details.fb ul { padding-left: 1.1em; }
+  .list { display: flex; flex-direction: column; gap: 16px; }
+  .stu { display: flex; flex-direction: column; gap: 12px; border-top: 6px solid var(--line); }
+  .stu.yes { border-top-color: var(--yes); }
+  .stu.no { border-top-color: var(--no); }
+  .stu .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+  .stu .who { font-weight: 800; font-size: 16px; margin-right: 4px; }
+  .cols { display: grid; gap: 12px; }
+  @media (min-width: 760px) { .cols.two { grid-template-columns: 1fr 1fr; } }
+  .col { background: var(--surface-2); border-radius: 14px; padding: 12px 14px; }
+  .col.post { background: #fff; box-shadow: inset 0 0 0 1.5px var(--line); }
+  .col-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; font-size: 13.5px; }
+  .col-head .lbl { font-weight: 900; font-size: 14.5px; margin-right: 2px; }
+  .en-text { font-family: var(--font-en); font-size: 16px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .tr { font-size: 14px; line-height: 1.65; color: var(--ink-2); white-space: pre-wrap; margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed #d8d3c5; }
+  .tr.wait { color: var(--ink-3); }
+  body.no-tr .tr { display: none; }
+  .col.empty-col { display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 14px; background: transparent; border: 1.5px dashed var(--line); }
+  details.fix { margin-top: 8px; font-size: 14px; }
+  details.fix summary { cursor: pointer; font-weight: 700; color: var(--good); }
+  details.fix .en-text { font-size: 15px; color: var(--good); margin-top: 6px; }
+  details.fix ul { margin: 6px 0 0; padding-left: 1.1em; }
   del { color: var(--fix); background: var(--fix-soft); padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   ins { color: var(--good); background: var(--good-soft); text-decoration: none; font-weight: 700; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
-  .star { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 16px; font-weight: 800; min-height: 40px; transition: transform 0.1s, background 0.15s; }
-  .star:active { transform: scale(0.95); }
-  .star.on { background: var(--pop); border-color: var(--pop); color: var(--cookie); box-shadow: 0 8px 18px -10px rgba(245,184,61,0.95); }
-  .foot { display: flex; align-items: center; gap: 8px; }
+  .growth { font-size: 13px; color: var(--good); font-weight: 800; }
+  .stamp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .stamp-bar .lead { font-size: 13px; color: var(--ink-2); font-weight: 700; margin-right: 4px; }
+  .stamp { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px 5px 8px; min-height: 40px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; transition: transform 0.1s, background 0.15s; }
+  .stamp .emo { font-size: 20px; line-height: 1; }
+  .stamp .n { font-family: var(--font-en); font-size: 12px; color: var(--ink-3); }
+  .stamp:active { transform: scale(0.95); }
+  .stamp.on { background: var(--pop); border-color: var(--pop); color: var(--cookie); box-shadow: 0 8px 18px -10px rgba(245,184,61,0.95); }
+  .stamp.on .n { color: var(--cookie); }
   .empty { text-align: center; color: var(--ink-3); padding: 50px 0; }
   .login { max-width: 460px; margin: 60px auto; padding: 28px; box-shadow: var(--shadow-lg); }
-  @media (max-width: 480px) { .list { grid-template-columns: 1fr; } }
+  .teacher-flag { background: var(--fix); color: #fff; font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
 </style>
 </head>
 <body>
@@ -66,13 +69,13 @@
 <div id="app" class="hidden">
   <header class="top">
     <div class="row">
-      <div class="brand"><span class="logo"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>参観者用</small></div>
+      <div class="brand"><span class="logo"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small id="roleName">参観者用</small></div>
       <div class="spacer"></div>
-      <div class="stats"><span class="hidden" id="sPreWrap">単元前 <b id="sPre">0</b></span><span>投票 <b id="sVotes">0</b></span><span>提出 <b id="sSubs">0</b>人</span><span>再提出 <b id="sRe">0</b></span></div>
+      <div class="stats"><span id="sPreWrap">読む前 <b id="sPre">0</b></span><span>投票 <b id="sVotes">0</b></span><span><span id="sPostLbl">授業の後</span> <b id="sPost">0</b></span></div>
     </div>
     <div class="filters">
       <div class="seg" id="fStance">
-        <button data-f="all" class="on">すべて</button><button data-f="yes">Yes</button><button data-f="no">No</button><button data-f="star">⭐ 推薦した意見</button>
+        <button data-f="all" class="on">すべて</button><button data-f="yes">Yes</button><button data-f="no">No</button><button data-f="sent">スタンプを送った</button>
       </div>
       <div class="seg" id="fSort">
         <button data-s="new" class="on">新しい順</button><button data-s="grp">グループ順</button>
@@ -80,22 +83,22 @@
       <div class="seg" id="fTr">
         <button data-tr="on" class="on">和訳あり</button><button data-tr="off">英語のみ</button>
       </div>
-      <div class="spacer"></div>
-      <div class="row" style="gap:6px"><span class="small muted">お名前（表示名）</span><input id="inName" type="text" placeholder="例：数学科 田中" style="width:170px;padding:6px 10px"></div>
     </div>
   </header>
   <main>
-    <details class="guide" open>
+    <details class="guide" id="guide" open>
       <summary>ご参観ありがとうございます — 観察の視点</summary>
       <ol>
-        <li>Example に、資料の数字やディベートで出た具体例が使われているか。</li>
-        <li>AI の指摘のうち、生徒は何を選んで直しているか（再提出の前後）。</li>
-        <li>AI の評価と、先生ご自身の評価は一致するか。</li>
-        <li id="guidePre" class="hidden">単元の前に書いた理由（各カードの「単元の前」）と比べて、理由の中身がどう変わったか。</li>
+        <li id="gPre">本文を読む前と授業の後で、考え（立場や理由）がどう変わったか。</li>
+        <li>本文の数字や表現、ディベートで出た具体例が使われているか。</li>
+        <li>書いた量や、英語の表現がどう変わったか。</li>
       </ol>
-      <p class="small muted" style="margin:4px 0 0">説得力があると感じた意見に ⭐ を付けてください（何件でも可）。授業の終末で「AI が選んだ意見」と並べて紹介します。生徒には、誰が ⭐ を付けたかは表示されません。</p>
+      <p class="small muted" style="margin:4px 0 0">心に残った英文には、スタンプを送ってください（何人にでも、何種類でも送れます。もう一度押すと取り消せます）。スタンプは<b>書いた生徒の画面にだけ</b>届きます。モニターには出ません。誰が送ったかも表示されません。</p>
       <p class="small muted" style="margin:4px 0 0">英文の下の日本語は、AI による参考訳です。生徒の英語の誤りは直さずに訳しています（生徒の画面には出ません）。上の「英語のみ」で消せます。</p>
     </details>
+    <div class="note hidden" id="teacherNote" style="margin-bottom:16px;background:var(--fix-soft);border:1px solid #f0c6c1;border-radius:14px;padding:11px 15px;font-size:14px">
+      先生用の一覧です。生徒が「添削する」を押した英文は、添削後の英文も読めます。<b>モニターに映さないでください。</b>
+    </div>
     <div id="list" class="list"></div>
   </main>
 </div>
@@ -119,21 +122,27 @@
     document.body.appendChild(el);
     setTimeout(() => el.remove(), isErr ? 5000 : 2200);
   }
-  const RANK = { A: 4, B: 3, C: 2, D: 1 };
-  const GL = { logic: "論理", grammar: "文法", vocab: "語彙" };
+  const ST = { yes: "Yes", no: "No", unsure: "Not sure" };
 
   if (API.demo) $("#demoBanner").classList.remove("hidden");
   const params = new URLSearchParams(location.search);
-  const S = { s: (params.get("s") || "").toUpperCase(), key: params.get("k") || "", name: store.get("oreolive_observer_name") || "" };
-  if (API.demo && !S.key) S.key = "demo";
-  const D = { since: 0, subs: new Map(), votes: [], prevotes: new Map(), starCounts: {}, myStars: new Set() };
-  let T = window.OREO_TOPIC(); // いまのセッションのトピック（理由タグの表示名に使う）
-  const ST = { yes: "Yes", no: "No", unsure: "Not sure" };
+  const S = { s: (params.get("s") || "").toUpperCase(), key: params.get("k") || "", role: "observer" };
+  // 先生用の一覧（モニターの「準備」タブから開く）：URL にキーを入れず、この端末に保存された教員キーを使う
+  if (params.get("as") === "teacher") {
+    const mon = store.get("oreolive_monitor") || {};
+    if (mon.key && (!S.s || mon.s === S.s)) { S.key = mon.key; S.s = S.s || mon.s; }
+  }
+  if (API.demo && !S.key) S.key = API.demoObserverKey;
+  // 参観者の端末ごとの印（名前は使わない）。同じ端末なら、送ったスタンプを取り消せる
+  let OBS = store.get("oreolive_observer_id");
+  if (!OBS) {
+    OBS = "o-" + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+    store.set("oreolive_observer_id", OBS);
+  }
+  const D = { since: 0, writings: new Map(), votes: [], stamps: {}, mine: new Set(), loaded: false };
+  let T = window.OREO_TOPIC();
   let filter = "all", sort = "new";
-  const openFb = new Set();
-
-  $("#inName").value = S.name;
-  $("#inName").addEventListener("change", () => { S.name = $("#inName").value.trim(); store.set("oreolive_observer_name", S.name); poll(); });
+  const openFix = new Set();
 
   if (S.s && S.key) start();
   else { $("#login").classList.remove("hidden"); $("#inS").value = S.s; }
@@ -150,13 +159,15 @@
 
   async function poll(throwErr) {
     try {
-      const res = await API.live(S.s, S.key, D.since, S.name);
-      D.votes = res.votes || [];
-      D.prevotes = new Map((res.prevotes || []).map((p) => [p.student, p]));
+      const res = await API.live(S.s, S.key, D.since, OBS);
+      S.role = res.role || "observer";
       T = window.OREO_TOPIC(res.topic);
-      (res.subs || []).forEach((r) => { D.subs.set(r.id, r); D.since = Math.max(D.since, r.id); });
-      D.starCounts = res.starCounts || {};
-      D.myStars = new Set(res.myStars || []);
+      D.votes = res.votes || [];
+      // 和訳や添削が後から付くと upd が進むので、同じ id は上書きする
+      (res.writings || []).forEach((w) => { D.writings.set(w.id, w); D.since = Math.max(D.since, w.upd || 0); });
+      D.stamps = res.stamps || {};
+      D.mine = new Set((res.myStamps || []).map(([st, sp]) => st + "|" + sp));
+      D.loaded = true;
       render();
     } catch (e) { if (throwErr) throw e; }
   }
@@ -172,87 +183,102 @@
   setTr(store.get("oreolive_observer_tr") !== false);
   $("#fTr").onclick = (e) => { const b = e.target.closest("button"); if (b) setTr(b.dataset.tr === "on"); };
 
-  function byStudent() {
+  // 生徒ごとに、読む前（pre）と授業の後（post）をまとめる
+  function students() {
     const m = new Map();
-    for (const r of D.subs.values()) { if (!m.has(r.student)) m.set(r.student, []); m.get(r.student).push(r); }
-    m.forEach((list) => list.sort((a, b) => a.version - b.version));
-    return m;
+    for (const w of D.writings.values()) {
+      if (!m.has(w.student)) m.set(w.student, { student: w.student, grp: "", pre: null, post: null });
+      const x = m.get(w.student);
+      x[w.round] = w;
+      if (w.grp) x.grp = w.grp;
+    }
+    return [...m.values()];
   }
+  const sentTo = (student) => C.STAMPS.some((sp) => D.mine.has(student + "|" + sp.id));
 
   function render() {
-    const groups = [...byStudent().values()];
+    const teacher = S.role === "teacher";
+    $("#roleName").textContent = teacher ? "先生用" : "参観者用";
+    $("#teacherNote").classList.toggle("hidden", !teacher);
+    const all = students();
+    const nPre = all.filter((x) => x.pre).length, nPost = all.filter((x) => x.post).length;
+    $("#sPre").textContent = nPre;
+    $("#sPreWrap").classList.toggle("hidden", !T.PRE_WRITING && !nPre);
+    $("#gPre").classList.toggle("hidden", !T.PRE_WRITING);
     $("#sVotes").textContent = D.votes.length;
-    $("#sPre").textContent = D.prevotes.size;
-    $("#sPreWrap").classList.toggle("hidden", !D.prevotes.size);
-    $("#guidePre").classList.toggle("hidden", !D.prevotes.size);
-    $("#sSubs").textContent = groups.length;
-    $("#sRe").textContent = [...D.subs.values()].filter((r) => r.version > 1).length;
-    let items = groups.map((list) => ({ list, cur: list[list.length - 1] }));
-    if (filter === "yes" || filter === "no") items = items.filter((x) => x.cur.stance === filter);
-    if (filter === "star") items = items.filter((x) => x.list.some((r) => D.myStars.has(r.id)));
-    items.sort(sort === "new" ? (a, b) => b.cur.at - a.cur.at : (a, b) => (+a.cur.grp || 99) - (+b.cur.grp || 99) || a.cur.student.localeCompare(b.cur.student));
-    const list = $("#list");
-    // 開いているフィードバックの状態を保ったまま再描画
-    $$("details.fb").forEach((d) => (d.open ? openFb.add(d.dataset.id) : openFb.delete(d.dataset.id)));
-    list.innerHTML = items.length ? items.map(card).join("") : `<div class="empty">${filter === "star" ? "まだ ⭐ を付けた意見はありません" : "提出を待っています…（6秒ごとに自動で更新されます）"}</div>`;
+    $("#sPost").textContent = nPost;
+    $("#sPostLbl").textContent = T.PRE_WRITING ? "授業の後" : "提出";
+    let items = all;
+    const now = (x) => x.post || x.pre;
+    if (filter === "yes" || filter === "no") items = items.filter((x) => now(x).stance === filter);
+    if (filter === "sent") items = items.filter((x) => sentTo(x.student));
+    const last = (x) => Math.max(x.pre ? x.pre.at : 0, x.post ? x.post.at : 0);
+    items.sort(sort === "new" ? (a, b) => last(b) - last(a) : (a, b) => (+a.grp || 99) - (+b.grp || 99) || a.student.localeCompare(b.student, "ja", { numeric: true }));
+    // 開いている「添削後の英文」の状態を保ったまま描き直す
+    $$("details.fix").forEach((d) => (d.open ? openFix.add(d.dataset.id) : openFix.delete(d.dataset.id)));
+    $("#list").innerHTML = items.length
+      ? items.map((x) => card(x, teacher)).join("")
+      : `<div class="empty">${filter === "sent" ? "まだスタンプを送った英文はありません" : "英文の提出を待っています…（6秒ごとに自動で更新されます）"}</div>`;
   }
 
-  function card({ list, cur }) {
-    const prev = list.length > 1 ? list[list.length - 2] : null;
-    const fb = cur.feedback || {};
-    const stars = list.reduce((a, r) => a + (D.starCounts[r.id] || 0), 0);
-    const mine = list.some((r) => D.myStars.has(r.id));
-    const g = (k) => `<span class="gm g-${esc(cur[k])}">${GL[k]} ${esc(cur[k])}</span>`;
-    let delta = "";
-    if (prev) {
-      const ch = ["logic", "grammar", "vocab"].filter((k) => RANK[cur[k]] !== RANK[prev[k]]).map((k) => `${GL[k]} ${prev[k]}→${cur[k]}`);
-      delta = `<span class="delta">v${prev.version}→v${cur.version}${ch.length ? "：" + esc(ch.join("、")) : "：評価は同じ"}</span>`;
-    }
-    const tag = (T.REASON_LABELS[cur.reason_tag] || ["", ""])[1];
-    const pre = D.prevotes.get(cur.student);
-    const tr = (k) => (cur.translation && cur.translation[k] ? `<span class="tr">${esc(cur.translation[k])}</span>` : "");
-    return `<article class="card sub ${esc(cur.stance)}">
-      <div class="meta"><span class="who">${cur.grp ? "G" + esc(cur.grp) + " · " : ""}${esc(cur.student.replace("-", "組"))}番</span>
-        <span class="badge ${esc(cur.stance)}">${cur.stance === "yes" ? "Yes" : "No"}</span>
-        <span class="badge">${esc(cur.words)} words</span>${tag ? `<span class="badge">${esc(tag)}</span>` : ""}
-        ${cur.flag && cur.flag !== "ok" ? `<span class="badge" style="background:#fff6db;color:#6b5200">要確認</span>` : ""}</div>
-      ${pre ? `<div class="pre-line"><b>単元の前</b><span class="badge ${esc(pre.stance)}">${ST[pre.stance] || ""}</span><span>${esc(pre.reason)}</span></div>` : ""}
-      <dl class="oreo-lines"><dt>O</dt><dd>${esc(cur.opinion)}${tr("opinion")}</dd><dt>R</dt><dd>${esc(cur.reason)}${tr("reason")}</dd><dt>E</dt><dd>${esc(cur.example)}${tr("example")}</dd><dt>O</dt><dd>${esc(cur.conclusion)}${tr("conclusion")}</dd></dl>
-      <div class="row" style="gap:8px"><div class="grades-mini">${g("logic")}${g("grammar")}${g("vocab")}</div>${delta}</div>
-      <details class="fb" data-id="${cur.id}" ${openFb.has(String(cur.id)) ? "open" : ""}><summary>AI のフィードバックを見る</summary>
-        <h4>いいところ</h4><p>${esc(fb.good_point)}</p>
-        <h4>論理</h4><p>${esc(fb.logic_comment)}</p>
-        <h4>文法の修正</h4>${(fb.corrections || []).length ? `<ul>${fb.corrections.map((c) => `<li><del>${esc(c.original)}</del> → <ins>${esc(c.corrected)}</ins> ${esc(c.why)}</li>`).join("")}</ul>` : "<p>なし</p>"}
-        <h4>もっと良い表現</h4>${(fb.better_expressions || []).length ? `<ul>${fb.better_expressions.map((b) => `<li class="en">${esc(b.suggestion)} <span class="muted" style="font-family:var(--font)">${esc(b.why)}</span></li>`).join("")}</ul>` : "<p>—</p>"}
-        ${fb.challenge && fb.challenge.en ? `<h4>反対側からの問い</h4><p class="en">${esc(fb.challenge.en)}</p>${fb.challenge.ja ? `<p class="tr">${esc(fb.challenge.ja)}</p>` : ""}` : ""}
-        ${prev ? `<h4>前の版（v${prev.version}）</h4><p class="en muted">${esc([prev.opinion, prev.reason, prev.example, prev.conclusion].filter(Boolean).join(" "))}</p>` : ""}
-      </details>
-      <div class="foot"><button class="star ${mine ? "on" : ""}" data-star="${cur.id}" data-student="${esc(cur.student)}">${mine ? "⭐ 推薦済み" : "☆ 推薦する"}</button><span class="small muted">${stars ? `⭐ ${stars}` : ""}</span>${cur.consent ? "" : `<span class="small muted">（モニター紹介は不可）</span>`}</div>
+  function column(w, round, teacher, both) {
+    const label = round === "pre" ? "本文を読む前" : both || T.PRE_WRITING ? "授業の後" : "英文";
+    if (!w) return `<div class="col empty-col">${round === "pre" ? "本文を読む前の英文はありません" : "授業の後の英文は、まだです"}</div>`;
+    const tr = w.translation
+      ? `<p class="tr">${esc(w.translation)}</p>`
+      : `<p class="tr wait">${Date.now() - (w.at || 0) < 120000 ? "和訳を作成中…" : "（和訳はありません）"}</p>`;
+    const c = teacher && w.correction;
+    const fix = c
+      ? `<details class="fix" data-id="${w.id}" ${openFix.has(String(w.id)) ? "open" : ""}><summary>添削後の英文を見る</summary>
+          <p class="en-text">${esc(c.corrected)}</p>
+          ${c.points && c.points.length ? `<ul>${c.points.map((p) => `<li>${p.original ? `<del>${esc(p.original)}</del> → ` : ""}<ins>${esc(p.corrected)}</ins> <span class="muted">${esc(p.why)}</span></li>`).join("")}</ul>` : ""}
+          ${c.comment_ja ? `<p class="small" style="margin:6px 0 0">💬 ${esc(c.comment_ja)}</p>` : ""}
+        </details>`
+      : "";
+    return `<div class="col ${round}">
+      <div class="col-head"><span class="lbl">${label}</span><span class="badge ${esc(w.stance)}">${ST[w.stance] || esc(w.stance)}</span><span class="badge">${esc(w.words)} words</span>
+        ${w.corrected ? `<span class="badge" title="生徒が「添削する」を押しました">✏️ 添削済み</span>` : ""}
+        ${w.flag && w.flag !== "ok" ? `<span class="badge" style="background:#fff6db;color:#6b5200" title="AI が、話題からそれている・配慮が必要などと判断した英文です">要確認</span>` : ""}</div>
+      <p class="en-text">${esc(w.body)}</p>
+      ${tr}
+      ${fix}
+    </div>`;
+  }
+
+  function card(x, teacher) {
+    const now = x.post || x.pre;
+    const both = !!(x.pre && x.post);
+    const showPre = T.PRE_WRITING || x.pre;
+    const growth = both ? (() => { const d = (x.post.words || 0) - (x.pre.words || 0); return d ? `<span class="growth">${x.pre.words} → ${x.post.words} words（${d > 0 ? "+" : "−"}${Math.abs(d)}）</span>` : ""; })() : "";
+    const got = D.stamps[x.student] || {};
+    const stamps = C.STAMPS.map((sp) => {
+      const on = D.mine.has(x.student + "|" + sp.id);
+      return `<button class="stamp ${on ? "on" : ""}" data-student="${esc(x.student)}" data-stamp="${sp.id}" title="${esc(sp.en)}"><span class="emo">${sp.emoji}</span>${esc(sp.ja)}${got[sp.id] ? `<span class="n">${got[sp.id]}</span>` : ""}</button>`;
+    }).join("");
+    return `<article class="card stu ${esc(now.stance)}">
+      <div class="meta"><span class="who">${x.grp ? "G" + esc(x.grp) + " · " : ""}${esc(x.student.replace("-", "組"))}番</span>${growth}</div>
+      <div class="cols ${showPre ? "two" : ""}">
+        ${showPre ? column(x.pre, "pre", teacher, both) : ""}
+        ${column(x.post, "post", teacher, both)}
+      </div>
+      <div class="stamp-bar"><span class="lead">スタンプを送る</span>${stamps}</div>
     </article>`;
   }
 
   $("#list").addEventListener("click", async (e) => {
-    const b = e.target.closest("[data-star]");
+    const b = e.target.closest("[data-stamp]");
     if (!b) return;
-    if (!S.name) { $("#inName").focus(); return toast("⭐ を付けるには、右上にお名前（表示名）を入力してください", true); }
-    const id = +b.dataset.star;
-    const versions = byStudent().get(b.dataset.student) || [];
-    const starred = versions.filter((r) => D.myStars.has(r.id)).map((r) => r.id);
+    const student = b.dataset.student, stamp = b.dataset.stamp, k = student + "|" + stamp;
+    const on = !D.mine.has(k);
     b.disabled = true;
     try {
-      if (starred.length) {
-        // 推薦を取り消す（再提出前の版に付けた⭐も含めて）
-        for (const sid of starred) {
-          await API.star(S.s, S.key, sid, S.name, false);
-          D.myStars.delete(sid);
-          D.starCounts[sid] = Math.max(0, (D.starCounts[sid] || 0) - 1);
-        }
-      } else {
-        await API.star(S.s, S.key, id, S.name, true);
-        D.myStars.add(id);
-        D.starCounts[id] = (D.starCounts[id] || 0) + 1;
-      }
+      await API.stamp(S.s, S.key, student, stamp, OBS, on);
+      // 次の取得を待たずに表示を変える
+      if (on) D.mine.add(k); else D.mine.delete(k);
+      D.stamps[student] = D.stamps[student] || {};
+      D.stamps[student][stamp] = Math.max(0, (D.stamps[student][stamp] || 0) + (on ? 1 : -1));
       render();
+      if (on) toast("スタンプを送りました");
     } catch (err) { toast(err.message, true); b.disabled = false; }
   });
 })();

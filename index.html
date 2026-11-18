@@ -10,16 +10,17 @@
   .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 18px; box-shadow: 0 6px 20px -12px rgba(21,23,30,0.6); }
   .brand { font-size: 18px; }
   .who:empty { display: none; }
-  .who { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--cream); background: rgba(255,255,255,0.12); padding: 4px 13px; border-radius: 999px; }
+  .who { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--cream); background: rgba(255,255,255,0.12); padding: 4px 13px; border-radius: 999px; cursor: pointer; }
   main { max-width: 780px; margin: 0 auto; padding: 22px 16px 80px; }
+  main.wide { max-width: 1080px; }
   h1 { font-size: 24px; margin: 0 0 4px; }
   .step { display: inline-block; font-size: 13px; font-weight: 700; color: var(--cream); background: var(--cookie); padding: 3px 12px; border-radius: 999px; margin: 0; }
   h2 { font-size: 21px; margin: 0 0 12px; font-weight: 800; }
+  h3 { font-size: 15px; margin: 0 0 6px; font-weight: 800; }
   .topic { display: inline; font-family: var(--font-en); font-size: 27px; line-height: 1.35; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; margin: 0; background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 94%, transparent 94%); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .topic-ja { color: var(--ink-2); margin: 6px 0 0; font-size: 15px; }
   .stack > * + * { margin-top: 14px; }
   #btnStart { width: 100%; min-height: 54px; font-size: 17px; }
-  textarea.ja { font-family: var(--font); font-size: 16px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
   /* 投票 */
@@ -42,6 +43,7 @@
 
   /* ライティング */
   .stance-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stance-pick.three { grid-template-columns: repeat(3, 1fr); }
   .stance-pick button { min-height: 72px; border-radius: 18px; border: 2px solid var(--line); background: var(--surface); font-size: 22px; font-weight: 900; font-family: var(--font-en); transition: transform 0.12s, background 0.15s, border-color 0.15s, color 0.15s; }
   .stance-pick button:active { transform: scale(0.98); }
   .stance-pick button[data-v="yes"] { color: var(--yes-ink); } .stance-pick button[data-v="no"] { color: var(--no-ink); }
@@ -49,46 +51,59 @@
   .stance-pick button.on small { color: rgba(255,255,255,0.9); }
   .stance-pick button[data-v="yes"].on { border-color: var(--yes); background: var(--yes); color: #fff; }
   .stance-pick button[data-v="no"].on { border-color: var(--no); background: var(--no); color: #fff; }
-  .oreo-box { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 16px; }
-  .oreo-box:focus-within { border-color: var(--cookie); }
-  .oreo-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-  .oreo-tag { width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px; color: var(--cream); background: var(--cookie); box-shadow: inset 0 0 0 2.5px rgba(255,255,255,0.16); font-family: var(--font-en); flex: none; }
-  .oreo-title { font-weight: 800; }
-  .oreo-hint { font-size: 13px; color: var(--ink-2); }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+  .stance-pick button[data-v="unsure"].on { border-color: var(--cookie); background: var(--cookie); color: var(--cream); }
+  .write-box { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 14px 16px 12px; }
+  .write-box:focus-within { border-color: var(--cookie); }
+  .write-box textarea { font-family: var(--font-en); font-size: 17px; line-height: 1.7; min-height: 300px; resize: vertical; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
   .chip { border: 0; background: var(--surface-2); color: var(--ink); border-radius: 999px; padding: 5px 13px; font-size: 14px; font-weight: 600; font-family: var(--font-en); }
   button.chip:active { background: var(--pop-soft); }
-  .wc-wrap { position: sticky; bottom: 0; background: rgba(245,242,234,0.9); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); padding: 12px 0 10px; border-top: 1px solid var(--line); }
-  .wc-bar { height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 6px 0 10px; }
-  .wc-bar div { height: 100%; width: 0; background: linear-gradient(90deg, var(--cookie), #3a4157); border-radius: 99px; transition: width 0.25s; }
+  .tip { margin: 10px 0 0; font-size: 13.5px; color: var(--ink-2); }
+  .tip b { font-family: var(--font-en); color: var(--ink); }
+  .wc-wrap { position: sticky; bottom: 0; background: rgba(245,242,234,0.92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); padding: 12px 0 10px; border-top: 1px solid var(--line); }
+  .wc-wrap .row { margin-bottom: 8px; }
+  #btnSubmit { min-height: 52px; font-size: 17px; }
+  #btnSubmit.armed { background: var(--pop); border-color: var(--pop); color: var(--cookie); }
   details.expr { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 12px 16px; }
   details.expr summary { font-weight: 700; cursor: pointer; }
   .expr-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-top: 8px; font-size: 15px; }
   .expr-grid .en { font-weight: 600; }
-  label.consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink-2); }
-  label.consent input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
 
-  /* フィードバック */
-  .grades { display: flex; gap: 10px; flex-wrap: wrap; }
-  .fb-block { border-left: 5px solid var(--line); background: var(--surface-2); border-radius: 4px 14px 14px 4px; padding: 12px 16px; }
-  .fb-block h3 { font-size: 15px; margin: 0 0 6px; font-weight: 800; }
-  .fb-block p { margin: 0; }
-  .fb-block.good { border-color: var(--good); background: var(--good-soft); }
-  .fb-block.good h3 { color: var(--good); }
-  .fb-block.logic { border-color: var(--cookie); background: var(--accent-soft); }
-  .fb-block.fix { border-color: var(--fix); background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
-  .fb-block.fix h3 { color: var(--fix); }
-  .fb-block.better { border-color: var(--pop); background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
-  .fb-block.challenge { border-color: var(--no); background: var(--no-soft); }
-  .fb-block.challenge h3 { color: var(--no-ink); }
-  .fix-list, .better-list { list-style: none; padding: 0; margin: 0; }
-  .fix-list li, .better-list li { padding: 8px 0; border-bottom: 1px solid var(--surface-2); }
-  .fix-list li:last-child, .better-list li:last-child { border-bottom: 0; }
+  /* 提出の後（英文・添削・比べる） */
+  .done-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .done-head h2 { margin: 0; }
+  .cmp { display: grid; gap: 14px; }
+  @media (min-width: 760px) { .cmp.two { grid-template-columns: 1fr 1fr; align-items: start; } }
+  .wcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; }
+  .wcard.focus { border-color: var(--cookie); box-shadow: var(--shadow-lg); }
+  .wcard-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .wcard-head .lbl { font-weight: 900; font-size: 17px; margin-right: 2px; }
+  .wtext { white-space: pre-wrap; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; margin: 0; }
+  .wtext.fixed { color: var(--good); }
+  .wnote { font-size: 13px; color: var(--ink-3); margin: 6px 0 0; }
+  .correct-area { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
+  .correct-area .btn { width: 100%; min-height: 50px; font-size: 16px; }
+  .correct-area .btn small { font-weight: 600; opacity: 0.8; }
+  .fix-list { list-style: none; padding: 0; margin: 0; }
+  .fix-list li { padding: 8px 0; border-bottom: 1px solid var(--surface-2); }
+  .fix-list li:last-child { border-bottom: 0; }
+  .comment { margin: 10px 0 0; background: var(--good-soft); border-radius: 12px; padding: 9px 13px; font-size: 15px; }
   del { color: var(--fix); background: var(--fix-soft); text-decoration-thickness: 2px; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   ins { color: var(--good); background: var(--good-soft); text-decoration: none; font-weight: 700; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
-  .sugg { font-family: var(--font-en); font-weight: 600; }
   .why { display: block; font-size: 14px; color: var(--ink-2); }
+  .growth { display: inline-flex; align-items: baseline; gap: 6px; background: var(--pop-soft); border: 1px solid #ecd9a0; border-radius: 999px; padding: 6px 16px; font-weight: 700; }
+  .growth b { font-family: var(--font-en); font-size: 22px; }
   .note { background: var(--pop-soft); border: 1px solid #ecd9a0; border-radius: 14px; padding: 11px 15px; font-size: 14px; }
+
+  /* 届いたスタンプ */
+  .stamps-got { background: var(--surface); border: 2px solid var(--pop); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; }
+  .stamps-got h3 { margin-bottom: 10px; }
+  .stamp-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stamp-got { display: inline-flex; align-items: center; gap: 8px; background: var(--pop-soft); border-radius: 14px; padding: 6px 12px 6px 8px; }
+  .stamp-got .emo { font-size: 28px; line-height: 1; }
+  .stamp-got small { display: block; font-size: 12px; color: var(--ink-2); line-height: 1.2; }
+  .stamp-got b.en { display: block; font-size: 14px; line-height: 1.2; }
+  .stamp-got .cnt { font-family: var(--font-en); font-size: 17px; margin-left: 2px; }
 
   .overlay { position: fixed; inset: 0; background: rgba(21,23,30,0.9); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--cream); z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; text-align: center; padding: 20px; }
   .overlay .muted { color: rgba(251,247,238,0.65); }
@@ -96,17 +111,22 @@
   .cookies i { width: 58px; height: 58px; border-radius: 50%; background: var(--cream); color: var(--cookie); display: flex; align-items: center; justify-content: center; font-style: normal; font-family: var(--font-en); font-weight: 900; font-size: 26px; animation: hop 1.2s ease-in-out infinite; }
   .cookies i:nth-child(2) { animation-delay: 0.15s; } .cookies i:nth-child(3) { animation-delay: 0.3s; } .cookies i:nth-child(4) { animation-delay: 0.45s; }
   @keyframes hop { 0%, 60%, 100% { transform: translateY(0); background: var(--cream); } 30% { transform: translateY(-16px); background: var(--pop); } }
-  @media (max-width: 520px) { .vote-btns { grid-template-columns: 1fr; } .vote-btns button { min-height: 72px; } .topic { font-size: 19px; } }
+  @media (max-width: 520px) {
+    .vote-btns { grid-template-columns: 1fr; } .vote-btns button { min-height: 72px; }
+    .stance-pick.three { grid-template-columns: 1fr; } .stance-pick.three button { min-height: 56px; }
+    .topic { font-size: 19px; }
+    .seg button { padding: 7px 11px; font-size: 14px; }
+  }
 </style>
 </head>
 <body>
-<div id="demoBanner" class="demo-banner hidden">デモモード：AIは使わず、サンプルの評価を表示します（config.js に WORKER_URL を設定すると本番になります）</div>
+<div id="demoBanner" class="demo-banner hidden">デモモード：AIは使わず、サンプルの添削を表示します（config.js に WORKER_URL を設定すると本番になります）</div>
 <header class="top">
   <div class="brand"><span class="logo"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>Student</small></div>
-  <div class="who" id="who" title="組・番号を変える場合はタップ" style="cursor:pointer"></div>
+  <div class="who" id="who" title="組・番号を変える場合はタップ"></div>
 </header>
 
-<main>
+<main id="main">
   <!-- ログイン -->
   <section id="v-login" class="stack hidden">
     <div>
@@ -144,29 +164,6 @@
     <p id="voteMsg" class="muted"></p>
   </section>
 
-  <!-- 単元に入る前の考え -->
-  <section id="v-pre" class="stack hidden">
-    <p class="step">これから学ぶ前に：今のあなたの考え</p>
-    <div>
-      <p class="topic" data-topic></p>
-      <p class="topic-ja" data-topic-ja></p>
-    </div>
-    <p class="muted" style="margin:0">まだ習っていないので、正解はありません。今の考えをそのまま教えてください。</p>
-    <div class="vote-btns" id="preBtns">
-      <button data-v="yes">Yes<span data-yes-ja></span></button>
-      <button data-v="no">No<span data-no-ja></span></button>
-      <button data-v="unsure">Not sure<span>まだわからない</span></button>
-    </div>
-    <div class="card stack">
-      <div>
-        <label class="field-label" for="preReason">そう考える理由を一言で <span class="muted small">（日本語でもOK）</span></label>
-        <textarea id="preReason" class="ja" rows="3" maxlength="200" placeholder="例：〜だと思うから。"></textarea>
-      </div>
-      <button id="btnPre" class="btn btn-primary" style="width:100%">送信する</button>
-    </div>
-    <p id="preMsg" class="note hidden"></p>
-  </section>
-
   <!-- ディベート中 -->
   <section id="v-wait" class="hidden">
     <div class="card wait-hero">
@@ -176,38 +173,40 @@
     </div>
   </section>
 
-  <!-- ライティング -->
+  <!-- ライティング（本文を読む前／授業の後） -->
   <section id="v-write" class="stack hidden">
-    <p class="step">Step 2：ディベートを踏まえて、自分の意見を OREO で書こう</p>
+    <p class="step" id="writeStep"></p>
     <div>
       <p class="topic" data-topic></p>
       <p class="topic-ja" data-topic-ja></p>
     </div>
-    <div id="rewriteNote" class="note hidden"></div>
-    <div class="card stack">
-      <div>
-        <span class="field-label">あなたの本当の意見は？<span class="muted small">（ディベートで担当した立場と違ってもOK）</span></span>
-        <div class="stance-pick" id="stancePick">
-          <button data-v="yes">Yes<small data-yes-ja></small></button>
-          <button data-v="no">No<small data-no-ja></small></button>
-        </div>
-      </div>
+    <p class="muted" id="writeLead" style="margin:0"></p>
+    <div class="card">
+      <span class="field-label" id="stanceLabel"></span>
+      <div class="stance-pick" id="stancePick"></div>
     </div>
-    <div id="oreoBoxes" class="stack"></div>
-    <details class="expr">
+    <div class="write-box">
+      <div class="chips" id="chips"></div>
+      <textarea id="ta" rows="12" spellcheck="false" autocapitalize="sentences" placeholder="Write in English."></textarea>
+      <p class="tip">💡 <b>O</b>pinion（意見）→ <b>R</b>eason（理由）→ <b>E</b>xample（具体例）→ <b>O</b>pinion（まとめ）の順に書くと伝わりやすくなります。この形にそろえなくても大丈夫。思いついたことを、どんどん書こう。</p>
+    </div>
+    <details class="expr" id="exprBox">
       <summary id="exprTitle"></summary>
       <div class="expr-grid" id="exprGrid"></div>
     </details>
-    <label class="consent"><input type="checkbox" id="inConsent" checked>この意見を、名前を出さずにモニターで紹介してもよい</label>
     <div class="wc-wrap">
-      <div class="row"><div><b id="wc" class="en" style="font-size:20px">0</b> words <span class="muted small">／ 目標 <span id="wcTarget"></span> 語</span></div><div class="spacer"></div><div class="small muted" id="remainTxt"></div></div>
-      <div class="wc-bar"><div id="wcBar"></div></div>
-      <button id="btnSubmit" class="btn btn-primary" style="width:100%">送信して AI のフィードバックを受け取る</button>
+      <div class="row"><div><b id="wc" class="en" style="font-size:22px">0</b> words</div><div class="spacer"></div><div class="small muted">提出は1回だけ。書き終わったら押そう</div></div>
+      <button id="btnSubmit" class="btn btn-primary" style="width:100%">提出する</button>
     </div>
   </section>
 
-  <!-- フィードバック -->
-  <section id="v-feedback" class="stack hidden"></section>
+  <!-- 提出の後 -->
+  <section id="v-done" class="stack hidden">
+    <div class="done-head"><h2>提出しました！</h2><span class="badge" id="doneRound"></span></div>
+    <p class="muted" id="doneLead" style="margin:0"></p>
+    <div data-stamps></div>
+    <div data-writings></div>
+  </section>
 
   <!-- 終了 -->
   <section id="v-closed" class="stack hidden">
@@ -215,18 +214,19 @@
       <div class="big">Thank you!</div>
       <p>今日の授業はここまでです。</p>
     </div>
+    <div data-stamps></div>
+    <div data-writings></div>
     <div class="card">
       <h2>Next question</h2>
       <p class="en" id="finalQ" style="font-size:19px;font-weight:700;white-space:pre-line;margin:0"></p>
       <p class="muted" id="finalQja"></p>
     </div>
-    <div id="closedFb"></div>
   </section>
 </main>
 
 <div id="loading" class="overlay hidden">
   <div class="cookies"><i>O</i><i>R</i><i>E</i><i>O</i></div>
-  <div><b>AI があなたの意見を読んでいます…</b><br><span class="muted small">10〜20秒ほどかかります。画面を閉じずに待ってください。</span></div>
+  <div><b>AI があなたの英文を添削しています…</b><br><span class="muted small">10〜30秒ほどかかります。画面を閉じずに待ってください。</span></div>
 </div>
 
 <script src="config.js"></script>
@@ -240,6 +240,7 @@
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
   };
   function toast(msg, isErr) {
     const el = document.createElement("div");
@@ -250,20 +251,17 @@
   }
 
   let T = window.OREO_TOPIC(); // いまのセッションのトピック（文言）。サーバーから id を受け取ったら applyTopic で入れ替える
-  const OREO = [
-    { key: "opinion", tag: "O", title: "Opinion 意見", hint: "あなたの立場をはっきり書こう", chips: T.OPINION_CHIPS },
-    { key: "reason", tag: "R", title: "Reason 理由", hint: "いちばん大事な理由を1つ", chips: ["First of all, ", "This is because ", "The main reason is that "] },
-    { key: "example", tag: "E", title: "Example 具体例", hint: "数字・事実・例で理由を支えよう", chips: ["For example, ", "According to the data, ", "In fact, ", "Moreover, "] },
-    { key: "conclusion", tag: "O", title: "Opinion 意見（まとめ）", hint: "もう一度、自分の意見をまとめよう", chips: ["Therefore, ", "For these reasons, ", "That is why "] },
-  ];
+  const ROUND_OF_PHASE = { pre: "pre", writing: "post" };
+  const STANCES = { pre: ["yes", "no", "unsure"], post: ["yes", "no"] };
+  const STANCE_EN = { yes: "Yes", no: "No", unsure: "Not sure" };
 
   const params = new URLSearchParams(location.search);
-  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, last: null, editing: false, stance: "", view: "", topic: "", preStance: "" };
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, view: "", topic: "", round: "", stance: "", show: "diff", stampTotal: -1 };
   const sid = () => `${st.s}_${st.cls}-${st.num}`;
+  const draftKey = (round) => `oreolive_draft2_${sid()}_${round}`;
 
   /* ---------- 初期化 ---------- */
   if (API.demo) $("#demoBanner").classList.remove("hidden");
-  const chipsHtml = (a) => a.chips.map((c) => `<button type="button" class="chip" data-for="${a.key}" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("");
   function applyTopic(id) {
     T = window.OREO_TOPIC(id);
     st.topic = id || C.DEFAULT_TOPIC;
@@ -275,23 +273,13 @@
     $("#finalQja").textContent = T.FINAL_QUESTION_JA;
     $("#exprTitle").textContent = T.EXPRESSIONS_TITLE;
     $("#exprGrid").innerHTML = T.EXPRESSIONS.map(([en, ja]) => `<span class="en">${esc(en)}</span><span class="muted">${esc(ja)}</span>`).join("");
-    OREO[0].chips = T.OPINION_CHIPS;
-    const box = $("#chips-opinion"); // 書きかけの文章を消さないよう、入れ替えるのは書き出しの候補だけ
-    if (box) box.innerHTML = chipsHtml(OREO[0]);
+    // 書きかけの文章は消さず、書き出しの候補と立場のボタンだけを入れ替える
+    $("#chips").innerHTML = [...T.OPINION_CHIPS, ...C.WRITE_CHIPS].map((c) => `<button type="button" class="chip" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("");
+    if (st.round) renderStanceButtons();
   }
-  $("#wcTarget").textContent = C.TARGET_WORDS;
   $("#inCls").innerHTML = C.CLASSES.map((c) => `<option value="${esc(c)}">${esc(c)}組</option>`).join("");
   $("#inNum").innerHTML = Array.from({ length: C.MAX_NUMBER }, (_, i) => `<option value="${i + 1}">${i + 1}番</option>`).join("");
   $("#inGrp").innerHTML = `<option value="">—</option>` + Array.from({ length: C.GROUPS }, (_, i) => `<option value="${i + 1}">G${i + 1}</option>`).join("");
-
-  $("#oreoBoxes").innerHTML = OREO.map(
-    (a) => `<div class="oreo-box">
-      <div class="oreo-head"><span class="oreo-tag">${a.tag}</span><div><div class="oreo-title">${esc(a.title)}</div><div class="oreo-hint">${esc(a.hint)}</div></div></div>
-      <div class="chips" id="chips-${a.key}">${chipsHtml(a)}</div>
-      <textarea id="ta-${a.key}" rows="${a.key === "example" ? 4 : 2}" spellcheck="false" autocapitalize="sentences" placeholder="Write in English."></textarea>
-    </div>`
-  ).join("");
-
   applyTopic(C.DEFAULT_TOPIC);
 
   const saved = store.get("oreolive_login");
@@ -308,39 +296,31 @@
 
   /* ---------- 画面の切り替え ---------- */
   function show(view) {
+    $("#main").classList.toggle("wide", view === "done" || view === "closed");
     if (st.view === view) return;
     st.view = view;
-    ["login", "pre", "vote", "wait", "write", "feedback", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
+    ["login", "vote", "wait", "write", "done", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
     window.scrollTo(0, 0);
   }
   function render() {
     if (!st.phase) return show("login");
     $("#who").textContent = `${st.cls}組${st.num}番${st.grp ? " · G" + st.grp : ""}`;
-    if (st.phase === "pre") {
-      const mine = st.mine && st.mine.pre;
-      const cur = st.preStance || (mine ? mine.stance : "");
-      $$("#preBtns button").forEach((b) => b.classList.toggle("on", cur === b.dataset.v));
-      if (mine && !$("#preReason").value) $("#preReason").value = mine.reason || "";
-      const msg = $("#preMsg");
-      msg.textContent = mine ? "送信しました。ありがとう！（書き直して、もう一度送信することもできます）" : "";
-      msg.classList.toggle("hidden", !mine);
-      $("#btnPre").textContent = mine ? "書き直して送信する" : "送信する";
-      return show("pre");
-    }
+    const mine = st.mine || {};
     if (st.phase === "vote") {
-      $$("#voteBtns button").forEach((b) => b.classList.toggle("on", st.mine && st.mine.vote === b.dataset.v));
-      $("#voteMsg").textContent = st.mine && st.mine.vote ? "送信しました。先生の指示を待ってください（選び直すこともできます）。" : "";
+      $$("#voteBtns button").forEach((b) => b.classList.toggle("on", mine.vote === b.dataset.v));
+      $("#voteMsg").textContent = mine.vote ? "送信しました。先生の指示を待ってください（選び直すこともできます）。" : "";
       return show("vote");
     }
     if (st.phase === "wait") return show("wait");
-    if (st.phase === "writing") {
-      if (st.last && !st.editing) { renderFeedback($("#v-feedback"), true); return show("feedback"); }
-      updateWriteMeta();
+    const round = ROUND_OF_PHASE[st.phase];
+    if (round) {
+      if (mine[round]) { renderDone(round); return show("done"); }
+      setupWrite(round);
       return show("write");
     }
     if (st.phase === "closed") {
-      const box = $("#closedFb");
-      if (st.last) renderFeedback(box, false); else box.innerHTML = "";
+      renderWritings($("#v-closed [data-writings]"), "");
+      renderStamps();
       return show("closed");
     }
   }
@@ -353,10 +333,10 @@
     btn.disabled = true;
     try {
       const res = await API.state(s, $("#inCls").value, $("#inNum").value);
-      Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine });
+      Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine, round: "", stampTotal: -1 });
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp });
-      restoreLocal();
+      st.view = "";
       render();
       startPolling();
     } catch (e) {
@@ -366,65 +346,31 @@
     }
   });
   $("#who").addEventListener("click", () => {
-    if (st.view === "write" || st.view === "vote" || st.view === "pre") { st.phase = null; st.view = ""; render(); }
+    if (st.view && st.view !== "login" && confirm("組・番号を入力し直しますか？（書いた英文は消えません）")) { st.phase = null; st.view = ""; render(); }
   });
-
-  function restoreLocal() {
-    const d = store.get("oreolive_draft_" + sid());
-    if (d) {
-      OREO.forEach((a) => ($("#ta-" + a.key).value = d[a.key] || ""));
-      setStance(d.stance || "");
-      if (typeof d.consent === "boolean") $("#inConsent").checked = d.consent;
-    }
-    st.last = store.get("oreolive_last_" + sid());
-    updateWC();
-  }
 
   /* ---------- 状態の取得（5秒ごと） ---------- */
   let timer = null;
   function startPolling() {
     clearInterval(timer);
-    timer = setInterval(async () => {
-      if (!st.phase) return;
-      try {
-        const res = await API.state(st.s, st.cls, st.num);
-        const changed = res.phase !== st.phase;
-        if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
-        st.mine = res.mine || st.mine;
-        st.phase = res.phase;
-        if (changed) { st.view = ""; render(); }
-        else if (st.phase === "vote") render();
-      } catch (e) { /* 一時的な通信エラーは無視して次回再試行 */ }
-    }, 5000);
+    timer = setInterval(refresh, 5000);
   }
-
-  /* ---------- 単元に入る前の考え ---------- */
-  $("#preBtns").addEventListener("click", (ev) => {
-    const b = ev.target.closest("button");
-    if (!b) return;
-    st.preStance = b.dataset.v;
-    $$("#preBtns button").forEach((x) => x.classList.toggle("on", x === b));
-  });
-  $("#btnPre").addEventListener("click", async () => {
-    const stance = st.preStance || (st.mine && st.mine.pre ? st.mine.pre.stance : "");
-    const reason = $("#preReason").value.trim();
-    if (!stance) return toast("Yes・No・Not sure のどれかを選ぼう", true);
-    if (!reason) return toast("理由を一言書いてから送信しよう（日本語でもOK）", true);
-    const btn = $("#btnPre");
-    btn.disabled = true;
+  async function refresh() {
+    if (!st.phase) return;
     try {
-      const res = await API.prevote({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance, reason });
-      st.mine = Object.assign({}, st.mine, { pre: { stance: res.stance, reason: res.reason } });
-      $("#preReason").value = res.reason;
-      render();
-      toast("送信しました");
-    } catch (e) {
-      toast(e.message, true);
-      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.phase = r.phase; st.view = ""; render(); } catch {} }
-    } finally {
-      btn.disabled = false;
-    }
-  });
+      const res = await API.state(st.s, st.cls, st.num);
+      if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
+      const changed = res.phase !== st.phase;
+      const before = st.mine || {};
+      st.mine = res.mine || st.mine;
+      // 添削の結果はこの端末で受け取ったものを優先（別の端末で押した場合はサーバーの値を使う）
+      ["pre", "post"].forEach((r) => { if (before[r] && before[r].correction && st.mine[r] && !st.mine[r].correction) st.mine[r].correction = before[r].correction; });
+      st.phase = res.phase;
+      if (changed) { st.view = ""; render(); }
+      else if (st.phase === "vote") render();
+      else renderStamps();
+    } catch (e) { /* 一時的な通信エラーは無視して次回再試行 */ }
+  }
 
   /* ---------- 投票 ---------- */
   $("#voteBtns").addEventListener("click", async (ev) => {
@@ -443,20 +389,42 @@
   });
 
   /* ---------- ライティング ---------- */
-  function setStance(v) {
-    st.stance = v;
-    $$("#stancePick button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  function renderStanceButtons() {
+    const list = STANCES[st.round] || STANCES.post;
+    const sub = { yes: T.YES_JA, no: T.NO_JA, unsure: "まだわからない" };
+    const box = $("#stancePick");
+    box.classList.toggle("three", list.length === 3);
+    box.innerHTML = list.map((v) => `<button type="button" data-v="${v}" class="${st.stance === v ? "on" : ""}">${STANCE_EN[v]}<small>${esc(sub[v])}</small></button>`).join("");
+  }
+  function setupWrite(round) {
+    if (st.round === round && $("#ta").dataset.sid === sid()) return; // 書いている途中はそのまま
+    st.round = round;
+    $("#ta").dataset.sid = sid();
+    const pre = round === "pre";
+    $("#writeStep").textContent = pre ? "本文を読む前に：今の考えを英語で書こう" : "Step 2：ディベートを踏まえて、今の考えを英語で書こう";
+    $("#writeLead").textContent = pre
+      ? "まだ習っていないので、正解はありません。今の考えを、思いつくだけ英語で書こう。わからない単語は日本語のままでも大丈夫。"
+      : "ディベートで出た理由や具体例も使ってみよう。たくさん書けたら、それだけ考えが伝わります。";
+    $("#stanceLabel").innerHTML = pre ? "今のあなたの考えは？" : `あなたの本当の意見は？<span class="muted small">（ディベートで担当した立場と違ってもOK）</span>`;
+    $("#exprBox").classList.toggle("hidden", pre); // 使える表現は授業の後だけ（読む前に答えを見せない）
+    const d = store.get(draftKey(round)) || {};
+    st.stance = STANCES[round].includes(d.stance) ? d.stance : "";
+    $("#ta").value = d.body || "";
+    disarm();
+    renderStanceButtons();
+    updateWC();
   }
   $("#stancePick").addEventListener("click", (ev) => {
     const b = ev.target.closest("button");
     if (!b) return;
-    setStance(b.dataset.v);
+    st.stance = b.dataset.v;
+    $$("#stancePick button").forEach((x) => x.classList.toggle("on", x === b));
     saveDraft();
   });
-  $("#oreoBoxes").addEventListener("click", (ev) => {
+  $("#chips").addEventListener("click", (ev) => {
     const c = ev.target.closest(".chip");
     if (!c) return;
-    const ta = $("#ta-" + c.dataset.for);
+    const ta = $("#ta");
     const text = c.dataset.text;
     const start = ta.selectionStart ?? ta.value.length, end = ta.selectionEnd ?? ta.value.length;
     const before = ta.value.slice(0, start), after = ta.value.slice(end);
@@ -467,99 +435,192 @@
     ta.setSelectionRange(pos, pos);
     onInput();
   });
-  $("#oreoBoxes").addEventListener("input", onInput);
-  $("#inConsent").addEventListener("change", saveDraft);
-  function onInput() { updateWC(); saveDraft(); }
-  function values() { return Object.fromEntries(OREO.map((a) => [a.key, $("#ta-" + a.key).value.trim()])); }
+  $("#ta").addEventListener("input", onInput);
+  function onInput() { updateWC(); saveDraft(); disarm(); }
   function countWords(t) { return (String(t).match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) || []).length; }
   function updateWC() {
-    const n = countWords(Object.values(values()).join(" "));
+    const n = countWords($("#ta").value);
     $("#wc").textContent = n;
-    $("#wcBar").style.width = Math.min(100, (n / C.TARGET_WORDS) * 100) + "%";
     return n;
   }
-  function saveDraft() { if (st.cls) store.set("oreolive_draft_" + sid(), Object.assign(values(), { stance: st.stance, consent: $("#inConsent").checked })); }
-  function remaining() {
-    const used = Math.max(st.mine ? st.mine.submissions || 0 : 0, st.last ? st.last.version : 0);
-    const max = (st.mine && st.mine.max) || C.MAX_SUBMISSIONS;
-    return { used, left: Math.max(0, max - used), max };
-  }
-  function updateWriteMeta() {
-    const r = remaining();
-    $("#remainTxt").textContent = `提出 あと${r.left}回`;
-    $("#btnSubmit").disabled = r.left <= 0;
-    const note = $("#rewriteNote");
-    if (r.used > 0) {
-      note.innerHTML = st.last
-        ? `書き直しモードです（${r.used}回提出済み）。フィードバックを参考に直して、もう一度送信しよう。<button type="button" class="btn btn-sm btn-ghost" id="backFb">← フィードバックに戻る</button>`
-        : `この端末以外ですでに${r.used}回提出しています。書き直して再提出できます。`;
-      note.classList.remove("hidden");
-      const back = $("#backFb");
-      if (back) back.onclick = () => { st.editing = false; st.view = ""; render(); };
-    } else note.classList.add("hidden");
-  }
+  function saveDraft() { if (st.cls && st.round) store.set(draftKey(st.round), { stance: st.stance, body: $("#ta").value }); }
 
+  // 提出は1回だけなので、2回押して確定する
+  let armTimer = null;
+  function disarm() {
+    clearTimeout(armTimer);
+    armTimer = null;
+    const b = $("#btnSubmit");
+    b.classList.remove("armed");
+    b.textContent = "提出する";
+  }
   $("#btnSubmit").addEventListener("click", async () => {
-    if (!st.stance) return toast("まず Yes か No を選ぼう", true);
-    const v = values();
-    if (updateWC() < 5) return toast("英文をもう少し書いてから送信しよう", true);
-    if (!v.opinion) return toast("O（Opinion）の欄を書こう", true);
+    if (!STANCES[st.round].includes(st.stance)) return toast(st.round === "pre" ? "まず Yes・No・Not sure のどれかを選ぼう" : "まず Yes か No を選ぼう", true);
+    if (updateWC() < 5) return toast("英文をもう少し書いてから提出しよう", true);
     const btn = $("#btnSubmit");
+    if (!armTimer) {
+      btn.classList.add("armed");
+      btn.textContent = "もう一度押すと提出します（提出は1回だけ）";
+      armTimer = setTimeout(disarm, 5000);
+      return;
+    }
+    disarm();
     btn.disabled = true;
-    $("#loading").classList.remove("hidden");
+    btn.textContent = "提出しています…";
+    const round = st.round;
     try {
-      const res = await API.submit(Object.assign({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, consent: $("#inConsent").checked }, v));
-      st.last = { version: res.version, remaining: res.remaining, words: res.words, feedback: res.feedback, text: v, stance: st.stance };
-      st.mine = Object.assign({}, st.mine, { submissions: res.version });
-      store.set("oreolive_last_" + sid(), st.last);
-      st.editing = false;
+      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, body: $("#ta").value });
+      store.del(draftKey(round));
+      st.mine = Object.assign({}, st.mine, { [res.round]: { stance: res.stance, body: $("#ta").value.trim(), words: res.words, at: res.at, correction: null } });
+      try { const r = await API.state(st.s, st.cls, st.num); st.mine = r.mine || st.mine; st.phase = r.phase; } catch {}
       st.view = "";
       render();
+      toast("提出しました！");
     } catch (e) {
       toast(e.message, true);
-      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.phase = r.phase; st.view = ""; render(); } catch {} }
+      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.mine = r.mine; st.phase = r.phase; st.view = ""; render(); } catch {} }
     } finally {
-      $("#loading").classList.add("hidden");
-      btn.disabled = remaining().left <= 0;
+      btn.disabled = false;
+      btn.textContent = "提出する";
     }
   });
 
-  /* ---------- フィードバック表示 ---------- */
-  function renderFeedback(target, allowRewrite) {
-    const L = st.last, fb = L.feedback || {};
-    const sc = fb.scores || {};
-    const g = (label, v) => `<div class="grade g-${esc(v)}"><b>${esc(v || "-")}</b><span>${label}</span></div>`;
-    const flagNote = {
-      inappropriate: "人ではなく「政策」について論じよう。根拠となるデータや事実は何だろう？",
-      off_topic: `今日のテーマ（${T.TOPIC_SHORT_JA}）について書けているか、もう一度確認しよう。`,
-      japanese_mixed: "日本語の部分は、下の「もっと良い表現」を参考に英語にしてみよう。",
-    }[fb.flag];
-    const r = remaining();
-    const txt = L.text || {};
+  /* ---------- 提出の後：自分の英文・添削・読む前との比較 ---------- */
+  function renderDone(round) {
+    const mine = st.mine || {};
+    const both = round === "post" && mine.pre;
+    $("#doneRound").textContent = round === "pre" ? "本文を読む前" : both ? "授業の後" : "";
+    $("#doneRound").classList.toggle("hidden", !$("#doneRound").textContent);
+    $("#doneLead").textContent = round === "pre"
+      ? "本文を学んだあとに、もう一度同じ問いで英文を書きます。そのとき、今日の英文と並べて見られます。"
+      : both ? "本文を読む前に書いた英文と並べてみよう。考え方や表現は、どう変わったかな？" : "「添削する」を押すと、AI が英文を直して見せてくれます。";
+    renderWritings($("#v-done [data-writings]"), round);
+    renderStamps();
+  }
+
+  // 英文のカード（読む前・授業の後）。focus は今のラウンド（添削ボタンを目立たせる）
+  function renderWritings(target, focus) {
+    const mine = st.mine || {};
+    const list = ["pre", "post"].filter((r) => mine[r]);
+    if (!list.length) { target.innerHTML = ""; return; }
+    const two = list.length === 2;
+    const anyFixed = list.some((r) => mine[r].correction);
+    const label = (r) => (two || r === "pre" ? (r === "pre" ? "本文を読む前" : "授業の後") : "あなたの英文");
+    const seg = anyFixed
+      ? `<div class="row"><div class="seg" id="showSeg">${[["orig", "自分の英文"], ["diff", "直したところ"], ["fixed", "添削後の英文"]].map(([k, l]) => `<button data-show="${k}" class="${st.show === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`
+      : "";
+    const growth = two
+      ? (() => {
+          const a = mine.pre.words || 0, b = mine.post.words || 0, d = b - a;
+          return `<div><span class="growth">書いた量 <b>${a}</b> → <b>${b}</b> words${d ? `<span>（${d > 0 ? "+" : "−"}${Math.abs(d)}）</span>` : ""}</span></div>`;
+        })()
+      : "";
     target.innerHTML = `
-      ${fb.demo ? `<div class="note">デモ用のサンプル評価です（AIは使っていません）。</div>` : ""}
-      <div class="row"><h2 style="margin:0">AI からのフィードバック</h2><span class="badge">Version ${esc(L.version)}</span><span class="badge ${esc(L.stance)}">${L.stance === "yes" ? "Yes" : "No"}</span><span class="badge">${esc(L.words)} words</span></div>
-      <div class="grades">${g("論理（OREO）", sc.logic)}${g("文法", sc.grammar)}${g("語彙", sc.vocabulary)}</div>
-      ${flagNote ? `<div class="note">${esc(flagNote)}</div>` : ""}
-      <div class="fb-block good"><h3>いいところ</h3><p>${esc(fb.good_point)}</p></div>
-      <div class="fb-block logic"><h3>論理（OREO）をもっと強くするには</h3><p>${esc(fb.logic_comment)}</p></div>
-      <div class="fb-block fix"><h3>文法の修正</h3>${
-        (fb.corrections || []).length
-          ? `<ul class="fix-list">${fb.corrections.map((c) => `<li><del>${esc(c.original)}</del> → <ins>${esc(c.corrected)}</ins><span class="why">${esc(c.why)}</span></li>`).join("")}</ul>`
-          : `<p class="muted">大きな誤りはありませんでした。</p>`
-      }</div>
-      <div class="fb-block better"><h3>もっと良い表現</h3>${
-        (fb.better_expressions || []).length
-          ? `<ul class="better-list">${fb.better_expressions.map((b) => `<li>${b.original ? `<span class="en muted">${esc(b.original)}</span> → ` : ""}<span class="sugg">${esc(b.suggestion)}</span><span class="why">${esc(b.why)}</span></li>`).join("")}</ul>`
-          : `<p class="muted">—</p>`
-      }</div>
-      ${fb.challenge && fb.challenge.en ? `<div class="fb-block challenge"><h3>反対側からの問い</h3><p class="en" style="font-weight:700;font-size:18px">${esc(fb.challenge.en)}</p><p>${esc(fb.challenge.ja)}</p><p class="small muted" style="margin-top:6px">この問いへの答えを Example に1文足すと、さらに説得力が増します。</p></div>` : ""}
-      <details class="expr"><summary>送信した英文を見る</summary><p class="en" style="margin:8px 0 0">${esc([txt.opinion, txt.reason, txt.example, txt.conclusion].filter(Boolean).join(" "))}</p></details>
-      <p class="small muted">AI の評価にはばらつきがあります。参考にして、どこを直すかは自分で決めよう。</p>
-      ${allowRewrite ? (r.left > 0 ? `<button class="btn btn-primary" id="btnRewrite" style="width:100%">書き直して再提出する（あと${r.left}回）</button>` : `<p class="muted">提出回数の上限に達しました。よく頑張りました！</p>`) : ""}
-    `;
-    const rw = target.querySelector("#btnRewrite");
-    if (rw) rw.onclick = () => { st.editing = true; st.view = ""; render(); };
+      <div class="stack">
+        ${growth}
+        ${seg}
+        <div class="cmp ${two ? "two" : ""}">${list.map((r) => card(r, mine[r], label(r), r === focus, anyFixed)).join("")}</div>
+        ${anyFixed ? `<p class="small muted" style="margin-top:10px">AI の添削は参考です。まちがえることや、ばらつきがあります。どう直すかは、自分で考えて決めよう。</p>` : ""}
+      </div>`;
+    const sg = target.querySelector("#showSeg");
+    if (sg) sg.onclick = (ev) => {
+      const b = ev.target.closest("button");
+      if (!b) return;
+      st.show = b.dataset.show;
+      $$("[data-writings]").forEach((t) => { if (t.closest("section:not(.hidden)")) renderWritings(t, focus); });
+    };
+    target.querySelectorAll("[data-correct]").forEach((b) => (b.onclick = () => doCorrect(b.dataset.correct)));
+  }
+  function card(round, w, label, focus, anyFixed) {
+    const c = w.correction;
+    let text = esc(w.body), cls = "";
+    if (c && st.show === "diff") text = diffHtml(w.body, c.corrected);
+    else if (c && st.show === "fixed") { text = esc(c.corrected); cls = "fixed"; }
+    const note = !c && anyFixed && st.show !== "orig" ? `<p class="wnote">（この英文はまだ添削していません）</p>` : "";
+    const area = c
+      ? `<div class="correct-area">
+          <h3>おもな直し</h3>
+          ${c.points && c.points.length
+            ? `<ul class="fix-list">${c.points.map((p) => `<li>${p.original ? `<del>${esc(p.original)}</del> → ` : ""}<ins>${esc(p.corrected)}</ins><span class="why">${esc(p.why)}</span></li>`).join("")}</ul>`
+            : `<p class="muted" style="margin:0">大きな直しはありませんでした。</p>`}
+          ${c.comment_ja ? `<p class="comment">💬 ${esc(c.comment_ja)}</p>` : ""}
+          ${c.demo ? `<p class="wnote">デモ用のサンプル添削です（AIは使っていません）。</p>` : ""}
+        </div>`
+      : `<div class="correct-area">
+          <button class="btn ${focus ? "btn-primary" : ""}" data-correct="${round}">✏️ 添削する <small>（1回だけ）</small></button>
+          <p class="small muted" style="margin:6px 0 0">AI があなたの英文を直して見せます。押せるのは1回だけです。</p>
+        </div>`;
+    return `<div class="wcard ${focus ? "focus" : ""}">
+      <div class="wcard-head"><span class="lbl">${label}</span><span class="badge ${esc(w.stance)}">${STANCE_EN[w.stance] || esc(w.stance)}</span><span class="badge">${esc(w.words)} words</span></div>
+      <p class="wtext en ${cls}">${text}</p>
+      ${note}
+      ${area}
+    </div>`;
+  }
+
+  // 単語ごとの差分（もとの英文 → 添削後）。消えた語は <del>、入った語は <ins>
+  function diffHtml(a, b) {
+    const A = String(a).match(/\S+\s*/g) || [], B = String(b).match(/\S+\s*/g) || [];
+    const n = A.length, m = B.length;
+    if (n * m > 1500000) return esc(b);
+    const ka = A.map((x) => x.trim()), kb = B.map((x) => x.trim());
+    const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = ka[i] === kb[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const ops = [];
+    let i = 0, j = 0;
+    while (i < n && j < m) {
+      if (ka[i] === kb[j]) ops.push(["=", B[j++]]), i++;
+      else if (dp[i + 1][j] >= dp[i][j + 1]) ops.push(["-", A[i++]]);
+      else ops.push(["+", B[j++]]);
+    }
+    while (i < n) ops.push(["-", A[i++]]);
+    while (j < m) ops.push(["+", B[j++]]);
+    // 続いている削除・追加はまとめて表示する
+    let out = "", k = 0;
+    while (k < ops.length) {
+      const op = ops[k][0];
+      let run = "";
+      while (k < ops.length && ops[k][0] === op) run += ops[k++][1];
+      const core = run.replace(/\s+$/, ""), tail = run.slice(core.length);
+      if (op === "=") out += esc(run);
+      else if (op === "-") out += `<del>${esc(core)}</del>` + (k < ops.length && ops[k][0] === "+" ? " " : esc(tail || " "));
+      else out += `<ins>${esc(core)}</ins>${esc(tail)}`;
+    }
+    return out;
+  }
+
+  async function doCorrect(round) {
+    const btns = $$(`[data-correct="${round}"]`);
+    btns.forEach((b) => (b.disabled = true));
+    $("#loading").classList.remove("hidden");
+    try {
+      const res = await API.correct({ s: st.s, cls: st.cls, num: st.num, round });
+      st.mine[round] = Object.assign({}, st.mine[round], { correction: res.correction });
+      st.show = "diff";
+      if (st.view === "done") renderDone(ROUND_OF_PHASE[st.phase] || round);
+      else render();
+      if (res.already) toast("この英文は、すでに添削しています");
+    } catch (e) {
+      toast(e.message, true);
+      btns.forEach((b) => (b.disabled = false));
+    } finally {
+      $("#loading").classList.add("hidden");
+    }
+  }
+
+  /* ---------- 参観の先生から届いたスタンプ ---------- */
+  function renderStamps() {
+    const got = (st.mine && st.mine.stamps) || {};
+    const list = C.STAMPS.filter((x) => got[x.id] > 0);
+    const total = list.reduce((a, x) => a + got[x.id], 0);
+    if (st.stampTotal >= 0 && total > st.stampTotal) toast("参観の先生から、スタンプが届きました！");
+    st.stampTotal = total;
+    const html = list.length
+      ? `<div class="stamps-got"><h3>参観の先生から、スタンプが届いています</h3><div class="stamp-list">${list
+          .map((x) => `<span class="stamp-got"><span class="emo">${x.emoji}</span><span><b class="en">${esc(x.en)}</b><small>${esc(x.ja)}</small></span><b class="cnt">×${got[x.id]}</b></span>`)
+          .join("")}</div></div>`
+      : "";
+    $$("[data-stamps]").forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html; });
   }
 
   /* ---------- 自動ログイン ---------- */
@@ -568,7 +629,6 @@
       .then((res) => {
         Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", phase: res.phase, mine: res.mine });
         if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
-        restoreLocal();
         render();
         startPolling();
       })
