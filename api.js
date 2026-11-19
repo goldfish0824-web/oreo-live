@@ -47,8 +47,7 @@
     write: (p) => http("/api/write", { method: "POST", body: p }),
     feedback: (p) => http("/api/feedback", { method: "POST", body: p, timeout: 90000 }), // コメントが届かなかったときの頼み直し
     reflect: (p) => http("/api/reflect", { method: "POST", body: p }),
-    live: (s, key, since, observer) => http("/api/live" + q({ s, since, observer }), { key }),
-    stamp: (s, key, student, stamp, observer, on, name) => http("/api/stamp", { method: "POST", key, body: { s, student, stamp, observer, on, name } }),
+    live: (s, key, since) => http("/api/live" + q({ s, since }), { key }),
     session: (s, key) => http("/api/admin/session", { method: "POST", key, body: { s } }),
     phase: (s, key, phase) => http("/api/admin/phase", { method: "POST", key, body: { s, phase } }),
     topic: (s, key, topic) => http("/api/admin/topic", { method: "POST", key, body: { s, topic } }),
@@ -68,7 +67,7 @@
     try {
       db = JSON.parse(localStorage.getItem(LS));
     } catch {}
-    return db || { sessions: {}, votes: [], writings: [], stamps: [], seq: 0 };
+    return db || { sessions: {}, votes: [], writings: [], seq: 0 };
   };
   const topicOf = (se) => (C.TOPICS[se.topic] ? se.topic : C.DEFAULT_TOPIC);
   const save = (db) => {
@@ -157,7 +156,6 @@
     if (w.round === "post") o.reflection = w.reflection || "";
     return o;
   };
-  const cleanName = (v) => String(v ?? "").replace(/\s+/g, " ").trim().replace(/\s*先生$/, "").slice(0, 20);
   const preOf = (db, se, st) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === "pre");
   // デモの役割：参観者用パスワードなら参観者、教員キーなら先生
   function demoRole(se, key) {
@@ -178,11 +176,7 @@
         const st = `${cls}-${parseInt(num, 10)}`;
         const v = db.votes.find((x) => x.session === se.code && x.student === st);
         const w = (r) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === r);
-        const stamps = db.stamps
-          .filter((x) => x.session === se.code && x.student === st)
-          .sort((a, b) => (a.at || 0) - (b.at || 0))
-          .map((x) => ({ stamp: x.stamp, name: x.name || "", at: x.at || 0 }));
-        out.mine = { vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")), stamps };
+        out.mine = { vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")) };
       }
       return out;
     },
@@ -250,45 +244,20 @@
       save(db);
       return { ok: true, reflection: text, at: w.upd };
     },
-    async live(s, key, since, observer) {
+    async live(s, key, since) {
       await wait(80);
       const db = load();
       const se = sess(db, s);
       const role = demoRole(se, key);
-      const stamps = {};
-      const myStamps = [];
-      for (const r of db.stamps.filter((x) => x.session === se.code)) {
-        stamps[r.student] = stamps[r.student] || {};
-        stamps[r.student][r.stamp] = (stamps[r.student][r.stamp] || 0) + 1;
-        if (observer && r.observer === observer) myStamps.push([r.student, r.stamp]);
-      }
       return {
         role,
         phase: se.phase,
         topic: topicOf(se),
         votes: db.votes.filter((x) => x.session === se.code),
         writings: db.writings.filter((x) => x.session === se.code && x.upd >= (since || 0)).map(strip),
-        stamps,
-        myStamps,
         summary: se.summary || null,
         serverTime: Date.now(),
       };
-    },
-    async stamp(s, key, student, stamp, observer, on, name) {
-      const db = load();
-      const se = sess(db, s);
-      demoRole(se, key);
-      if (!observer) err("参観者の情報がありません。ページを開き直してください");
-      const nm = cleanName(name);
-      if (on && !nm) err("お名前を入力してください（生徒には「〇〇先生から」と届きます）");
-      const had = db.stamps.find((x) => x.session === se.code && x.student === student && x.observer === observer && x.stamp === stamp);
-      db.stamps = db.stamps.filter((x) => x !== had);
-      if (on) {
-        db.stamps.push({ session: se.code, student, observer, stamp, name: nm, at: had ? had.at : Date.now() });
-        db.stamps.forEach((x) => { if (x.session === se.code && x.observer === observer) x.name = nm; });
-      }
-      save(db);
-      return { ok: true };
     },
     async session(s) {
       const db = load();
@@ -360,7 +329,6 @@
       const se = sess(db, s);
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
-      db.stamps = db.stamps.filter((x) => x.session !== se.code);
       se.phase = "vote";
       se.summary = null;
       save(db);
@@ -375,10 +343,9 @@
       const db = load();
       const se = sess(db, s);
       const people = new Map();
-      const get = (id) => people.get(id) || people.set(id, { student: id, grp: "", vote: "", pre: null, post: null, stamps: 0, from: new Set() }).get(id);
+      const get = (id) => people.get(id) || people.set(id, { student: id, grp: "", vote: "", pre: null, post: null }).get(id);
       db.votes.filter((x) => x.session === se.code).forEach((v) => Object.assign(get(v.student), { vote: v.stance, grp: v.grp }));
       db.writings.filter((x) => x.session === se.code).forEach((w) => { get(w.student)[w.round] = w; if (w.grp) get(w.student).grp = w.grp; });
-      db.stamps.filter((x) => x.session === se.code).forEach((x) => { get(x.student).stamps += 1; if (x.name) get(x.student).from.add(x.name + "先生"); });
       const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
       const part = (w) => {
         if (!w) return Array(8).fill("");
@@ -386,8 +353,8 @@
         return [w.stance, w.words, w.body, f.comment || "", (f.questions || []).map((q) => `${q.en}（${q.ja}）`).join(" / "), f.corrected || "", w.translation || "", w.flag || ""];
       };
       const cols = (p) => [`${p}の立場`, `${p}の語数`, `${p}の英文`, `${p}のAIコメント`, `${p}のAIの問いかけ`, `${p}の添削後`, `${p}の和訳(AI)`, `${p}のフラグ`];
-      const head = ["組-番号", "グループ", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り", "スタンプ(合計)", "スタンプを送った先生"];
-      const rows = [...people.values()].map((x) => [x.student, x.grp, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || "", x.stamps, [...x.from].join("、")].map(esc).join(","));
+      const head = ["組-番号", "グループ", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り"];
+      const rows = [...people.values()].map((x) => [x.student, x.grp, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || ""].map(esc).join(","));
       return new Blob(["﻿" + [head.map(esc).join(","), ...rows].join("\r\n")], { type: "text/csv" });
     },
     // モニターの見た目確認用：28人分のサンプル（本番のトピックは読む前と後、練習は1回だけ）を投入
@@ -401,7 +368,6 @@
       let n = 0;
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
-      db.stamps = db.stamps.filter((x) => x.session !== se.code);
       const topic = topicOf(se);
       const add = (w) => {
         const x = Object.assign({ id: ++db.seq, session: se.code, flag: "ok", feedback: null, reflection: null }, w, { words: words(w.body), upd: w.at });
@@ -429,10 +395,6 @@
           const post = add({ student, grp, round: "post", stance, body: t[0], translation: t[1], at: base + 30 * 60000 + n * 20000 });
           if (n !== 25) post.feedback = demoFeedback(post, topic, pre); // 1人はコメントがまだ届いていない
           if (n % 3 !== 2) post.reflection = REFL[n % REFL.length];
-          const at = base + 45 * 60000 + n * 15000;
-          if (n % 3 === 0) db.stamps.push({ session: se.code, student, observer: "demo-1", stamp: "nice", name: "田中", at });
-          if (n % 4 === 0) db.stamps.push({ session: se.code, student, observer: "demo-2", stamp: "grow", name: "佐藤", at: at + 1000 });
-          if (n % 5 === 0) db.stamps.push({ session: se.code, student, observer: "demo-3", stamp: "text", name: "鈴木", at: at + 2000 });
         }
       }
       save(db);

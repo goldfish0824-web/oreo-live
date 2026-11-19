@@ -18,16 +18,6 @@ window.OREO_CONFIG = {
   // 書き出しの候補（生徒画面でタップすると入る。OREO の順に並べている）
   WRITE_CHIPS: ["First of all, ", "This is because ", "For example, ", "In addition, ", "However, ", "Therefore, "],
 
-  // 参観者が送るスタンプ。「〇〇先生から」と、書いた生徒の画面にだけ届く（モニターには出ない）。id は worker.js の STAMPS とそろえる
-  STAMPS: [
-    { id: "nice", emoji: "👍", en: "Nice!", ja: "いいね" },
-    { id: "idea", emoji: "💡", en: "Interesting idea", ja: "なるほど" },
-    { id: "text", emoji: "📖", en: "Good use of the text", ja: "本文が生きている" },
-    { id: "grow", emoji: "🌱", en: "Your thinking grew", ja: "考えが深まった" },
-    { id: "much", emoji: "✍️", en: "You wrote a lot", ja: "たくさん書けた" },
-    { id: "convincing", emoji: "🎯", en: "Convincing", ja: "説得力がある" },
-  ],
-
   // ミニ・ディベートの進行（モニターのタイマー）。どのトピックでも共通
   DEBATE_PHASES: [
     { label: "① 作戦タイム", who: "Yes・No のペアで理由を2つ選ぶ", sec: 120 },
