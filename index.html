@@ -156,11 +156,11 @@
         <input id="inCode" type="text" inputmode="latin" autocomplete="off" placeholder="例：1210">
       </div>
       <div class="grid3">
-        <div><label class="field-label" for="inCls">組</label><select id="inCls"></select></div>
-        <div><label class="field-label" for="inNum">番号</label><select id="inNum"></select></div>
+        <div><label class="field-label" for="inId">番号（4けた）</label><input id="inId" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="例：2401"></div>
+        <div><label class="field-label" for="inName">名字（ひらがな）</label><input id="inName" type="text" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例：やまだ"></div>
         <div><label class="field-label" for="inGrp">グループ</label><select id="inGrp"></select></div>
       </div>
-      <p class="small muted">名前は入力しません。組・番号・グループ番号だけを使います。</p>
+      <p class="small muted" id="idHint">4けたの番号は「学年・組・番号」です（例：2年4組1番 → 2401）。最初に入れた名字が、あなたのパスワードになります。次からも同じ名字で入ってください。名字そのものは保存されず、画面にも、先生や AI にも見えません。</p>
       <button id="btnStart" class="btn btn-primary">はじめる</button>
     </div>
   </section>
@@ -278,7 +278,7 @@
 
   const params = new URLSearchParams(location.search);
   // show = 英文の表示（orig：自分の英文／diff：直したところ／fixed：添削後）。最初は自分の英文を見せ、コメントと問いかけを先に読ませる
-  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, view: "", topic: "", round: "", stance: "", show: "orig", openFix: {}, fbSig: "" };
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", token: "", phase: null, mine: null, view: "", topic: "", round: "", stance: "", show: "orig", openFix: {}, fbSig: "" };
   const sid = () => `${st.s}_${st.cls}-${st.num}`;
   const draftKey = (round) => `oreolive_draft2_${sid()}_${round}`;
   const reflectKey = () => `oreolive_reflect_${sid()}`;
@@ -301,17 +301,18 @@
     $("#chips").innerHTML = [...T.OPINION_CHIPS, ...C.WRITE_CHIPS].map((c) => `<button type="button" class="chip" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("");
     if (st.round) renderStanceButtons();
   }
-  $("#inCls").innerHTML = C.CLASSES.map((c) => `<option value="${esc(c)}">${esc(c)}組</option>`).join("");
-  $("#inNum").innerHTML = Array.from({ length: C.MAX_NUMBER }, (_, i) => `<option value="${i + 1}">${i + 1}番</option>`).join("");
   $("#inGrp").innerHTML = `<option value="">—</option>` + Array.from({ length: C.GROUPS }, (_, i) => `<option value="${i + 1}">G${i + 1}</option>`).join("");
+  const ID_EXAMPLE = `${C.GRADE ? C.GRADE + "年" : ""}${C.CLASSES[0]}組1番 → ${window.OREO_ID_OF(C.CLASSES[0], 1)}`;
+  $("#inId").placeholder = "例：" + window.OREO_ID_OF(C.CLASSES[0], 1);
+  $("#idHint").firstChild.textContent = $("#idHint").firstChild.textContent.replace(/（例：[^）]*）/, `（例：${ID_EXAMPLE}）`);
   applyTopic(C.DEFAULT_TOPIC);
 
+  // この端末に覚えておくのは、セッション・組・番号・グループと、ログインの印（token）だけ。名字は覚えない
   const saved = store.get("oreolive_login");
   if (saved) {
     if (!st.s && saved.s) st.s = saved.s;
-    if (saved.s === st.s) {
-      $("#inCls").value = saved.cls;
-      $("#inNum").value = saved.num;
+    if (saved.s === st.s && saved.cls) {
+      $("#inId").value = window.OREO_ID_OF(saved.cls, saved.num);
       $("#inGrp").value = saved.grp || "";
     }
   }
@@ -355,24 +356,41 @@
   $("#btnStart").addEventListener("click", async () => {
     const s = ($("#inCode").value || "").trim().toUpperCase();
     if (!s) return toast("セッションコードを入力してください", true);
+    const id = window.OREO_PARSE_ID($("#inId").value);
+    if (!id) return toast(`番号は4けたで入れてください（例：${ID_EXAMPLE}）`, true);
+    const name = $("#inName").value.trim();
+    if (!name) return toast("名字を入力してください", true);
+    const grp = $("#inGrp").value;
     const btn = $("#btnStart");
     btn.disabled = true;
     try {
-      const res = await API.state(s, $("#inCls").value, $("#inNum").value);
-      Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine, round: "", fbSig: "" });
+      const lg = await API.login({ s, cls: id.cls, num: id.num, grp, name });
+      const res = await API.state(s, id.cls, id.num, lg.token);
+      Object.assign(st, { s, cls: id.cls, num: id.num, grp, token: lg.token, phase: res.phase, mine: res.mine, round: "", fbSig: "" });
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
-      store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp });
+      store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp, token: st.token });
+      $("#inName").value = "";
       st.view = "";
       render();
       startPolling();
+      if (lg.first) toast(`「${name}」で登録しました。次からも同じ名字で入ってください`);
     } catch (e) {
       toast(e.message, true);
     } finally {
       btn.disabled = false;
     }
   });
+  // ログインし直す（別の生徒に替わるときも）。この端末の印は消す
+  function relogin(msg) {
+    clearTimeout(timer);
+    Object.assign(st, { phase: null, token: "", view: "" });
+    store.set("oreolive_login", { s: st.s, cls: st.cls, num: st.num, grp: st.grp });
+    render();
+    if (msg) toast(msg, true);
+  }
+  const authLost = (e) => (e && e.status === 401 ? (relogin("もう一度、番号と名字を入れてください"), true) : false);
   $("#who").addEventListener("click", () => {
-    if (st.view && st.view !== "login" && confirm("組・番号を入力し直しますか？（書いた英文は消えません）")) { st.phase = null; st.view = ""; render(); }
+    if (st.view && st.view !== "login" && confirm("番号と名字を入れ直しますか？（書いた英文は消えません）")) relogin();
   });
 
   /* ---------- 状態の取得（5秒ごと。AI のコメントを待っている間は3秒ごと） ---------- */
@@ -394,7 +412,7 @@
   async function refresh() {
     if (!st.phase) return;
     try {
-      const res = await API.state(st.s, st.cls, st.num);
+      const res = await API.state(st.s, st.cls, st.num, st.token);
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       const changed = res.phase !== st.phase;
       st.mine = res.mine || st.mine;
@@ -402,7 +420,7 @@
       if (changed) { st.view = ""; render(); }
       else if (st.phase === "vote") render();
       else if (fbSignature() !== st.fbSig && (st.view === "done" || st.view === "closed")) rerenderWritings();
-    } catch (e) { /* 一時的な通信エラーは無視して次回再試行 */ }
+    } catch (e) { authLost(e); /* 一時的な通信エラーは無視して次回再試行 */ }
   }
 
   /* ---------- 投票 ---------- */
@@ -411,11 +429,11 @@
     if (!b) return;
     $$("#voteBtns button").forEach((x) => (x.disabled = true));
     try {
-      await API.vote({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: b.dataset.v });
+      await API.vote({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: b.dataset.v, token: st.token });
       st.mine = Object.assign({}, st.mine, { vote: b.dataset.v });
       render();
     } catch (e) {
-      toast(e.message, true);
+      if (!authLost(e)) toast(e.message, true);
     } finally {
       $$("#voteBtns button").forEach((x) => (x.disabled = false));
     }
@@ -506,18 +524,19 @@
     btn.textContent = "提出しています…";
     const round = st.round;
     try {
-      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, body: $("#ta").value });
+      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, body: $("#ta").value, token: st.token });
       store.del(draftKey(round));
       st.mine = Object.assign({}, st.mine, { [res.round]: { stance: res.stance, body: $("#ta").value.trim(), words: res.words, at: res.at, feedback: null } });
-      try { const r = await API.state(st.s, st.cls, st.num); st.mine = r.mine || st.mine; st.phase = r.phase; } catch {}
+      try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine || st.mine; st.phase = r.phase; } catch {}
       st.view = "";
       st.show = "orig";
       render();
       startPolling(); // コメントが届くまで、少し早めに確かめる
       toast("提出しました！ AI のコメントを待っています…");
     } catch (e) {
+      if (authLost(e)) return; // 書きかけはこの端末に残っているので、ログインし直せば戻る
       toast(e.message, true);
-      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.mine = r.mine; st.phase = r.phase; st.view = ""; render(); } catch {} }
+      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine; st.phase = r.phase; st.view = ""; render(); } catch {} }
     } finally {
       btn.disabled = false;
       btn.textContent = "提出する";
@@ -651,11 +670,11 @@
     $$(`[data-retry="${round}"]`).forEach((b) => (b.disabled = true));
     $("#loading").classList.remove("hidden");
     try {
-      const res = await API.feedback({ s: st.s, cls: st.cls, num: st.num, round });
+      const res = await API.feedback({ s: st.s, cls: st.cls, num: st.num, round, token: st.token });
       st.mine[round] = Object.assign({}, st.mine[round], { feedback: res.feedback });
       rerenderWritings();
     } catch (e) {
-      toast(e.message, true);
+      if (!authLost(e)) toast(e.message, true);
       $$(`[data-retry="${round}"]`).forEach((b) => (b.disabled = false));
     } finally {
       $("#loading").classList.add("hidden");
@@ -689,7 +708,7 @@
       if (ta.value.trim() === lastSaved.trim()) return;
       btn.disabled = true;
       try {
-        const res = await API.reflect({ s: st.s, cls: st.cls, num: st.num, text: ta.value });
+        const res = await API.reflect({ s: st.s, cls: st.cls, num: st.num, text: ta.value, token: st.token });
         lastSaved = res.reflection || "";
         if (st.mine.post) st.mine.post.reflection = lastSaved;
         store.del(reflectKey());
@@ -698,7 +717,7 @@
         if (lastSaved) state.textContent = `保存しました（${t}）`;
         if (!quiet) toast("振り返りを保存しました");
       } catch (e) {
-        if (!quiet) toast(e.message, true);
+        if (!authLost(e) && !quiet) toast(e.message, true);
       } finally {
         btn.disabled = false;
       }
@@ -708,10 +727,11 @@
   }
 
   /* ---------- 自動ログイン ---------- */
-  if (saved && saved.s && saved.s === st.s && saved.cls) {
-    API.state(st.s, saved.cls, saved.num)
+  // ログインの印が残っていれば、そのまま入る（印が古い・先生がログインをやり直させたときは、ログイン画面に戻る）
+  if (saved && saved.s && saved.s === st.s && saved.cls && saved.token) {
+    API.state(st.s, saved.cls, saved.num, saved.token)
       .then((res) => {
-        Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", phase: res.phase, mine: res.mine });
+        Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", token: saved.token, phase: res.phase, mine: res.mine });
         if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
         render();
         startPolling();

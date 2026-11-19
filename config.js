@@ -3,7 +3,9 @@ window.OREO_CONFIG = {
   // Cloudflare Worker の URL。空欄のままだと「デモモード」（AIを使わず、このブラウザ内だけで動作）
   WORKER_URL: "https://oreo-live.goldfish0824.workers.dev",
 
-  // 生徒のログイン画面の選択肢
+  // 生徒のログイン：4けたの番号（学年1けた＋組1けた＋番号2けた。例：2年4組1番 → 2401）と名字。
+  // 最初に入れた名字が、その生徒のパスワードになる（名字そのものは保存しない）
+  GRADE: "2",
   CLASSES: ["4", "5", "6"],
   MAX_NUMBER: 45,
   GROUPS: 8,
@@ -108,6 +110,21 @@ window.OREO_CONFIG = {
       ],
     },
   },
+};
+
+// 4けたの番号（例：2401）から組・番号を取り出す。学年・組・番号が合わないときは null
+window.OREO_PARSE_ID = function (v) {
+  const C = window.OREO_CONFIG;
+  const d = String(v ?? "").normalize("NFKC").replace(/\D/g, "");
+  if (d.length !== 4) return null;
+  const cls = d[1], num = parseInt(d.slice(2), 10);
+  if (C.GRADE && d[0] !== String(C.GRADE)) return null;
+  if (!C.CLASSES.includes(cls) || !(num >= 1 && num <= C.MAX_NUMBER)) return null;
+  return { cls, num: String(num) };
+};
+// 組・番号から4けたの番号を作る（例：4組1番 → 2401）
+window.OREO_ID_OF = function (cls, num) {
+  return `${window.OREO_CONFIG.GRADE || ""}${cls}${String(num).padStart(2, "0")}`;
 };
 
 // トピックの文言を取り出す（知らない id のときは本番のトピック）

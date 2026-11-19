@@ -41,12 +41,19 @@
   const q = (o) => "?" + new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "")).toString();
 
   /* ---------------- 本番（Worker） ---------------- */
+  // 生徒用：ログインで受け取った印（token）は、本文に入れずヘッダー X-Key で送る
+  const asStudent = (path, p, opt = {}) => {
+    const { token, ...body } = p;
+    return http(path, { method: "POST", body, key: token, ...opt });
+  };
   const remote = {
-    state: (s, cls, num) => http("/api/state" + q({ s, cls, num })),
-    vote: (p) => http("/api/vote", { method: "POST", body: p }),
-    write: (p) => http("/api/write", { method: "POST", body: p }),
-    feedback: (p) => http("/api/feedback", { method: "POST", body: p, timeout: 90000 }), // コメントが届かなかったときの頼み直し
-    reflect: (p) => http("/api/reflect", { method: "POST", body: p }),
+    login: (p) => http("/api/login", { method: "POST", body: p }),
+    state: (s, cls, num, token) => http("/api/state" + q({ s, cls, num }), { key: token }),
+    vote: (p) => asStudent("/api/vote", p),
+    write: (p) => asStudent("/api/write", p),
+    feedback: (p) => asStudent("/api/feedback", p, { timeout: 90000 }), // コメントが届かなかったときの頼み直し
+    reflect: (p) => asStudent("/api/reflect", p),
+    unlock: (s, key, cls, num) => http("/api/admin/unlock", { method: "POST", key, body: { s, cls, num } }),
     live: (s, key, since) => http("/api/live" + q({ s, since }), { key }),
     session: (s, key) => http("/api/admin/session", { method: "POST", key, body: { s } }),
     phase: (s, key, phase) => http("/api/admin/phase", { method: "POST", key, body: { s, phase } }),
@@ -67,7 +74,9 @@
     try {
       db = JSON.parse(localStorage.getItem(LS));
     } catch {}
-    return db || { sessions: {}, votes: [], writings: [], seq: 0 };
+    db = db || { sessions: {}, votes: [], writings: [], seq: 0 };
+    db.logins = db.logins || [];
+    return db;
   };
   const topicOf = (se) => (C.TOPICS[se.topic] ? se.topic : C.DEFAULT_TOPIC);
   const save = (db) => {
@@ -141,8 +150,9 @@
     const n = words(w.body);
     const hasNumber = /\d/.test(w.body);
     const good = hasNumber ? "数字を根拠に使っていて、説得力があります。" : "自分の考えが、自分の言葉ではっきり書けています。";
+    const nb = before ? words(before.body) : 0;
     const comment = before
-      ? `読む前（${words(before.body)}語）より多い${n}語で書けました。${good}`
+      ? (n > nb ? `読む前（${nb}語）より多い${n}語で書けました。` : `読む前は${nb}語、今日は${n}語でした。`) + good
       : w.round === "pre" ? "今の考えを、思いつくだけ英語で書けています。" + (/[぀-ヿ㐀-鿿]/.test(w.body) ? "日本語の部分も、英語で何と言うか見てみよう。" : "")
       : good;
     const qs = ((DEMO_QUESTIONS[topic] || DEMO_QUESTIONS.refugees)[w.round] || DEMO_QUESTIONS.refugees.post).map(([en, ja]) => ({ en, ja }));
@@ -157,6 +167,19 @@
     return o;
   };
   const preOf = (db, se, st) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === "pre");
+  // デモのログイン（本番と同じく、名字そのものは保存せず照合用の値だけを置く。デモなので簡単なハッシュ）
+  const normName = (v) => String(v ?? "").normalize("NFKC").replace(/\s+/g, "").replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60)).slice(0, 20);
+  const demoHash = (t) => { let h = 0x811c9dc5; for (const ch of t) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
+  const newToken = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (x) => x.toString(16).padStart(2, "0")).join("");
+  const studentId = (p) => {
+    const num = parseInt(p.num, 10);
+    if (!/^[A-Za-z0-9]{1,4}$/.test(String(p.cls ?? "")) || !(num >= 1 && num <= 99)) err("組・番号が正しくありません");
+    return `${p.cls}-${num}`;
+  };
+  function needLogin(db, se, st, token) {
+    const l = db.logins.find((x) => x.session === se.code && x.student === st);
+    if (!l || !token || l.token !== token) err("もう一度、番号と名字を入れてください", 401);
+  }
   // デモの役割：参観者用パスワードなら参観者、教員キーなら先生
   function demoRole(se, key) {
     if (key && key === (se.obsPass || "")) return "observer";
@@ -167,13 +190,28 @@
   }
 
   const demo = {
-    async state(s, cls, num) {
+    async login(p) {
+      await wait(150);
+      const db = load();
+      const se = sess(db, p.s);
+      const st = studentId(p);
+      const name = normName(p.name);
+      if (!name) err("名字を入力してください");
+      const hash = demoHash(`${se.code}|${st}|${name}`);
+      let l = db.logins.find((x) => x.session === se.code && x.student === st);
+      const first = !l;
+      if (!l) { l = { session: se.code, student: st, hash, token: newToken(), at: Date.now() }; db.logins.push(l); save(db); }
+      if (l.hash !== hash) err("番号か名字がちがいます。わからないときは、先生に言ってください", 401);
+      return { ok: true, token: l.token, first };
+    },
+    async state(s, cls, num, token) {
       await wait(120);
       const db = load();
       const se = sess(db, s);
       const out = { code: se.code, phase: se.phase, topic: topicOf(se) };
       if (cls) {
-        const st = `${cls}-${parseInt(num, 10)}`;
+        const st = studentId({ cls, num });
+        needLogin(db, se, st, token);
         const v = db.votes.find((x) => x.session === se.code && x.student === st);
         const w = (r) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === r);
         out.mine = { vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")) };
@@ -185,7 +223,8 @@
       const db = load();
       const se = sess(db, p.s);
       if (se.phase !== "vote") err("今は投票の時間ではありません", 409);
-      const st = `${p.cls}-${parseInt(p.num, 10)}`;
+      const st = studentId(p);
+      needLogin(db, se, st, p.token);
       db.votes = db.votes.filter((x) => !(x.session === se.code && x.student === st));
       db.votes.push({ session: se.code, student: st, grp: String(p.grp || ""), stance: p.stance });
       save(db);
@@ -197,11 +236,12 @@
       const se = sess(db, p.s);
       const round = ROUND_OF_PHASE[se.phase];
       if (!round) err("今は英文を書く時間ではありません", 409);
+      const st = studentId(p);
+      needLogin(db, se, st, p.token);
       if (!STANCES[round].includes(p.stance)) err(round === "pre" ? "Yes・No・Not sure のどれかを選んでください" : "Yes か No を選んでください");
       const body = cleanBody(p.body);
       const w = words(body);
       if (w < 5) err("英文をもう少し書いてから提出しましょう");
-      const st = `${p.cls}-${parseInt(p.num, 10)}`;
       if (db.writings.some((x) => x.session === se.code && x.student === st && x.round === round)) err("この英文はもう提出しています", 409);
       const at = Date.now();
       const id = ++db.seq;
@@ -222,7 +262,8 @@
       await wait(1500);
       const db = load();
       const se = sess(db, p.s);
-      const st = `${p.cls}-${parseInt(p.num, 10)}`;
+      const st = studentId(p);
+      needLogin(db, se, st, p.token);
       const w = db.writings.find((x) => x.session === se.code && x.student === st && x.round === p.round);
       if (!w) err("まだ英文を提出していません", 404);
       if (w.feedback) return { feedback: w.feedback, already: true };
@@ -235,7 +276,8 @@
       await wait(200);
       const db = load();
       const se = sess(db, p.s);
-      const st = `${p.cls}-${parseInt(p.num, 10)}`;
+      const st = studentId(p);
+      needLogin(db, se, st, p.token);
       const w = db.writings.find((x) => x.session === se.code && x.student === st && x.round === "post");
       if (!w) err("英文を提出してから、振り返りを書きましょう", 404);
       const text = cleanBody(p.text).slice(0, 1500);
@@ -329,10 +371,20 @@
       const se = sess(db, s);
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
+      db.logins = db.logins.filter((x) => x.session !== se.code);
       se.phase = "vote";
       se.summary = null;
       save(db);
       return { ok: true };
+    },
+    async unlock(s, key, cls, num) {
+      const db = load();
+      const se = sess(db, s);
+      const st = studentId({ cls, num });
+      const before = db.logins.length;
+      db.logins = db.logins.filter((x) => !(x.session === se.code && x.student === st));
+      save(db);
+      return { ok: true, student: st, removed: before - db.logins.length };
     },
     async info(s) {
       const db = load();

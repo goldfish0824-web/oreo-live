@@ -212,6 +212,10 @@
         <button class="btn" id="btnTeacherView">先生用の一覧を開く（別のタブ）</button>
         <span class="small muted">生徒一人ひとりの英文（読む前・授業の後）を、和訳、AI のコメント・問いかけ・添削、振り返りと一緒に読めます。教員キーで開くので、パスワードは要りません。生徒の英文がすべて見えるので、<b>モニターに映しているときは開かないでください</b>。</span>
       </div>
+      <div class="teacher-view">
+        <button class="btn" id="btnUnlock">生徒のログインをやり直せるようにする</button>
+        <span class="small muted">生徒は4けたの番号と名字で入ります（最初に入れた名字がパスワードになります）。名字を忘れた・まちがえて登録した生徒がいたら、その生徒の4けたの番号を入れてください。次に入れた名字で登録し直せます。書いた英文は消えません。</span>
+      </div>
       <div class="row" style="margin-top:18px">
         <button class="btn" id="btnCsv">データを CSV で保存</button>
         <button class="btn btn-danger" id="btnClear">このセッションのデータを削除</button>
@@ -479,6 +483,18 @@
     if (v === null) return;
     try { const res = await API.password(S.s, S.key, v); S.observerPassword = res.observerPassword; pwVisible = false; renderPw(); toast("参観者用パスワードを保存しました"); }
     catch (e) { toast(e.message, true); }
+  };
+  // 生徒のログインをやり直せるようにする（名字を忘れた・まちがえて登録したとき）
+  $("#btnUnlock").onclick = async () => {
+    const ex = window.OREO_ID_OF(C.CLASSES[0], 1);
+    const v = prompt(`ログインをやり直せるようにする生徒の、4けたの番号を入力してください（例：${ex}）`);
+    if (v === null) return;
+    const id = window.OREO_PARSE_ID(v);
+    if (!id) return toast(`4けたの番号が正しくありません（例：${ex}）`, true);
+    try {
+      const res = await API.unlock(S.s, S.key, id.cls, id.num);
+      toast(res.removed ? `${id.cls}組${id.num}番は、次に入れた名字で登録し直せます` : `${id.cls}組${id.num}番は、まだログインしていません`);
+    } catch (e) { toast(e.message, true); }
   };
   // 先生用の一覧：参観者用ページを、この端末に保存した教員キーで開く（URL にキーは入れない）
   $("#btnTeacherView").onclick = () => {
