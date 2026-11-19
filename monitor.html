@@ -33,6 +33,10 @@
   footer.ctrl .seg button { padding: 6px 12px; font-size: 14px; }
   footer.ctrl .stat { color: rgba(251,247,238,0.62); }
   footer.ctrl .stat b { color: var(--cream); font-family: var(--font-en); font-size: 16px; }
+  footer.ctrl #fLesson { font-weight: 700; }
+  footer.ctrl #btnLesson { background: var(--pop); border-color: var(--pop); color: var(--cookie); font-weight: 800; }
+  footer.ctrl #btnBackPre { background: transparent; border-color: transparent; color: rgba(251,247,238,0.5); font-size: 13px; }
+  .lesson-warn { background: var(--pop-soft); border: 1px solid #ecd9a0; border-radius: 14px; padding: 10px 16px; font-weight: 700; margin-bottom: 14px; }
 
   /* 準備 */
   details.adv { margin-top: 12px; }
@@ -226,6 +230,7 @@
 
     <!-- 1 最初の考え -->
     <section class="pane hidden" data-pane="vote">
+      <div class="lesson-warn hidden" data-lesson-warn>生徒画面は、まだ「本文を読む前」のままです。下の「研究授業を始める」を押すと、生徒が投票から順に進めるようになります。</div>
       <p class="ttl">Step 1 — What do you think now?</p>
       <p class="topic-big" data-topic></p>
       <p class="topic-ja" data-topic-ja></p>
@@ -264,13 +269,14 @@
 
     <!-- 3 ライティング（本文を読む前／授業の後） -->
     <section class="pane hidden" data-pane="write">
+      <div class="lesson-warn hidden" id="wWarn"></div>
       <div id="wBanner" class="banner-hint hidden"></div>
       <div class="subtabs" id="wModeRow">
         <div class="seg" id="wMode">
           <button data-m="pre">本文を読む前（単元の最初）</button>
           <button data-m="post">授業の後（ディベートの後）</button>
         </div>
-        <span class="small muted">どちらのライティングかを選んでから「ライティング開始」を押します。</span>
+        <span class="small muted">どちらのライティングかを選んでから「ライティング開始」を押します（タイマーだけが動きます。生徒画面は生徒が自分で進めます）。</span>
       </div>
       <div class="write-layout">
         <div class="card timer-card">
@@ -279,7 +285,7 @@
           <div class="clock huge" id="wClock">12:00</div>
           <div class="prog"><div id="wProg"></div></div>
           <div class="timer-ctrl">
-            <button class="btn btn-primary" id="wStart">▶ ライティング開始（生徒画面も切り替え）</button>
+            <button class="btn btn-primary" id="wStart">▶ ライティング開始</button>
             <button class="btn" id="wPause">一時停止</button>
             <button class="btn btn-ghost" id="wReset">↺ リセット</button>
           </div>
@@ -351,13 +357,9 @@
 
   <footer class="ctrl">
     <span class="muted">生徒画面：</span>
-    <div class="seg" id="phaseSeg">
-      <button data-ph="pre" title="本文を読む前のライティング（単元の最初）">読む前に書く</button>
-      <button data-ph="vote">投票</button>
-      <button data-ph="wait">待機（ディベート）</button>
-      <button data-ph="writing">ライティング</button>
-      <button data-ph="closed">終了</button>
-    </div>
+    <span id="fLesson"></span>
+    <button class="btn btn-sm hidden" id="btnLesson" title="生徒が投票から順に進めるようになります（1回だけ押します）">研究授業を始める</button>
+    <button class="btn btn-sm hidden" id="btnBackPre" title="間違えて開いたとき用">読む前に戻す</button>
     <span class="spacer"></span>
     <span class="stat" id="fPreWrap">読む前 <b id="fPre">0</b></span>
     <span class="stat">投票 <b id="fVotes">0</b></span>
@@ -395,7 +397,8 @@
 
   /* ================= データ ================= */
   const S = { s: "", key: "", observerPassword: "" };
-  const D = { since: 0, writings: new Map(), votes: [], summary: null, phase: null, topic: "", ok: true, loaded: false };
+  // lesson = 研究授業の部が開いているか（先生が「研究授業を始める」を1回押す。練習のトピックは最初から開いている）
+  const D = { since: 0, writings: new Map(), votes: [], summary: null, phase: null, lesson: false, topic: "", ok: true, loaded: false };
   const byRound = (round) => [...D.writings.values()].filter((w) => w.round === round);
   function counts(list, key) { const c = {}; list.forEach((x) => (c[x[key]] = (c[x[key]] || 0) + 1)); return c; }
 
@@ -437,6 +440,7 @@
       const res = await API.session(s, key);
       Object.assign(S, { s: res.code, key });
       D.phase = res.phase;
+      D.lesson = !!res.lesson;
       applyTopic(res.topic);
       store.set("oreolive_monitor", { s: S.s, key });
       try { const info = await API.info(S.s, key); S.observerPassword = info.observerPassword || ""; $("#modelShow").textContent = "AI: " + info.model; } catch {}
@@ -523,13 +527,26 @@
   });
   $("#btnFull").addEventListener("click", () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); });
 
-  /* ================= 生徒画面のフェーズ ================= */
-  const PHASE_NAME = { pre: "本文を読む前のライティング", vote: "投票", wait: "待機", writing: "ライティング", closed: "終了" };
+  /* ================= 生徒画面（先生の画面とは連動しない） ================= */
+  // 生徒は自分で順番に進む。先生が切り替えるのは「研究授業を始める」の1回だけ
+  // （本文を読む前の英文 →「続きは本文を学習した後で」で止まる → 開くと、投票 → ディベート → 授業の後の英文 → 振り返り）
   async function setPhase(ph) {
-    try { await API.phase(S.s, S.key, ph); D.phase = ph; renderFooter(); renderActive(); toast("生徒画面：" + PHASE_NAME[ph]); }
-    catch (e) { toast(e.message, true); }
+    try {
+      const res = await API.phase(S.s, S.key, ph);
+      D.phase = res.phase;
+      D.lesson = !!res.lesson;
+      if (!wModePicked && !wTimer.running) setMode(wModeAuto(), false);
+      renderFooter();
+      renderActive();
+      toast(D.lesson ? "研究授業の部を開きました。生徒は投票から順に進めます" : "本文を読む前に戻しました");
+    } catch (e) { toast(e.message, true); }
   }
-  $("#phaseSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setPhase(b.dataset.ph); });
+  $("#btnLesson").addEventListener("click", () => {
+    if (confirm("研究授業の部を開きます（1回だけ押します）。\n\n・生徒画面は「最初の考え（投票）」から、生徒が自分で順に進めるようになります。\n・本文を読む前の英文は、もう書けなくなります。\n\n開きますか？")) setPhase("lesson");
+  });
+  $("#btnBackPre").addEventListener("click", () => {
+    if (confirm("本文を読む前に戻します（間違えて開いたとき用）。\n\n・投票や英文は消えません。\n・授業の後の英文をまだ出していない生徒は、「本文を読む前」の画面に戻ります。\n\n戻しますか？")) setPhase("pre");
+  });
 
   /* ================= ポーリング ================= */
   async function poll() {
@@ -540,6 +557,7 @@
       (res.writings || []).forEach((w) => { D.writings.set(w.id, w); D.since = Math.max(D.since, w.upd || 0); });
       D.summary = res.summary || null;
       D.phase = res.phase;
+      D.lesson = !!res.lesson;
       D.loaded = true;
       if (res.topic && res.topic !== D.topic) applyTopic(res.topic);
       D.ok = true;
@@ -549,10 +567,12 @@
     renderActive();
   }
   function renderFooter() {
-    $$("#phaseSeg button").forEach((b) => b.classList.toggle("on", b.dataset.ph === D.phase));
     const pre = byRound("pre").length;
-    // 練習のトピック（読む前に書かない）では「読む前に書く」を出さない
-    $("#phaseSeg [data-ph=pre]").classList.toggle("hidden", !T.PRE_WRITING && D.phase !== "pre");
+    // 練習のトピック（読む前に書かない）は最初から開いているので、ボタンを出さない
+    $("#fLesson").textContent = !T.PRE_WRITING ? "生徒が自分で順に進めます" : D.lesson ? "研究授業の部（生徒が自分で順に進めます）" : "本文を読む前（読む前の英文だけ書けます）";
+    $("#btnLesson").classList.toggle("hidden", !T.PRE_WRITING || D.lesson || !D.loaded);
+    $("#btnBackPre").classList.toggle("hidden", !T.PRE_WRITING || !D.lesson);
+    $$("[data-lesson-warn]").forEach((e) => e.classList.toggle("hidden", !T.PRE_WRITING || D.lesson || !D.loaded));
     // データが入ったセッションでは、トピックの切り替え欄を出さない（最初の取得が済むまでも出さない）
     const empty = D.loaded && !D.votes.length && !D.writings.size;
     $("#advBox").classList.toggle("hidden", !empty);
@@ -653,19 +673,17 @@
   })();
 
   /* ================= 3 ライティング ================= */
-  // pre：本文を読む前（単元の最初。phase=pre）／ post：授業の後（ディベートの後。phase=writing）
+  // pre：本文を読む前（単元の最初。研究授業の部を開く前）／ post：授業の後（ディベートの後。研究授業の部を開いた後）
   let wMode = "post", wModePicked = false, hintBeeped = false;
   const W = {
-    pre: { min: () => C.PRE_WRITING_MINUTES, hint: () => C.PRE_SUBMIT_HINT_MINUTE, phase: "pre", ph: "Writing — Before reading", who: "Write what you think <b>now</b>. No right answer! わからない単語は日本語でもOK" },
-    post: { min: () => C.WRITING_MINUTES, hint: () => C.SUBMIT_HINT_MINUTE, phase: "writing", ph: "Writing — After the debate", who: "Write your <b>real</b> opinion. Use ideas from the text and the debate." },
+    pre: { min: () => C.PRE_WRITING_MINUTES, hint: () => C.PRE_SUBMIT_HINT_MINUTE, ph: "Writing — Before reading", who: "Write what you think <b>now</b>. No right answer! わからない単語は日本語でもOK" },
+    post: { min: () => C.WRITING_MINUTES, hint: () => C.SUBMIT_HINT_MINUTE, ph: "Writing — After the debate", who: "Write your <b>real</b> opinion. Use ideas from the text and the debate." },
   };
   // どちらのライティングかを、状況から決める（先生が選んだあとは、その選択を優先）
   function wModeAuto() {
     if (!T.PRE_WRITING) return "post";
     if (wModePicked) return wMode;
-    if (D.phase === "pre") return "pre";
-    if (D.phase === "writing") return "post";
-    return D.votes.length || byRound("post").length ? "post" : "pre"; // 投票や授業の後の英文がまだなければ、読む前のライティング
+    return D.lesson ? "post" : "pre";
   }
   const wTimer = makeTimer((left, total) => {
     $("#wClock").textContent = fmt(left);
@@ -695,7 +713,7 @@
   setMode("post", false);
   setInterval(() => { if (wTimer.running && !hintBeeped && wTimer.total - wTimer.left >= W[wMode].hint() * 60) { hintBeeped = true; beep(2, 990); } }, 500);
   $("#wMode").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.m, true); });
-  $("#wStart").onclick = async () => { actx || beep(0); if (D.phase !== W[wMode].phase) await setPhase(W[wMode].phase); wTimer.start(); };
+  $("#wStart").onclick = () => { actx || beep(0); wTimer.start(); }; // タイマーだけ。生徒画面は切り替えない
   $("#wPause").onclick = () => wTimer.pause();
   $("#wReset").onclick = () => { hintBeeped = false; wTimer.set(W[wMode].min() * 60); };
   $("#wShowStance").onchange = () => renderWrite();
@@ -703,6 +721,12 @@
   function renderWrite() {
     const list = byRound(wMode);
     const post = wMode === "post";
+    // 選んだライティングと、生徒画面の状態が合わないとき（生徒が書けない）だけ知らせる
+    const warn = !T.PRE_WRITING || !D.loaded ? ""
+      : post && !D.lesson ? "生徒画面は、まだ「本文を読む前」のままです。下の「研究授業を始める」を押すと、生徒が投票から順に進めるようになります。"
+      : !post && D.lesson ? "研究授業の部を開いているので、本文を読む前の英文はもう書けません。" : "";
+    $("#wWarn").textContent = warn;
+    $("#wWarn").classList.toggle("hidden", !warn);
     // 授業の後：分母は今日の投票者と提出者。読む前：ログインだけの人は数えられないので、提出数だけ
     const students = new Set([...(post ? D.votes.map((v) => v.student) : []), ...list.map((w) => w.student)]);
     $("#wN").textContent = list.length;

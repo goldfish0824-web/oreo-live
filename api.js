@@ -93,7 +93,8 @@
   const code = (s) => String(s || "").trim().toUpperCase();
   const sess = (db, s) => db.sessions[code(s)] || err("セッションが見つかりません。コードを確認してください", 404);
   const words = (t) => (String(t).match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) || []).length;
-  const ROUND_OF_PHASE = { pre: "pre", writing: "post" };
+  // 研究授業の部が開いているか（本番と同じ。読む前に書かないトピックは、いつでも開いている）
+  const lessonOpen = (se) => !C.TOPICS[topicOf(se)].PRE_WRITING || se.phase !== "pre";
   const STANCES = { pre: ["yes", "no", "unsure"], post: ["yes", "no"] };
   const cleanBody = (v) => String(v ?? "").replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 3000);
   const DEMO_TR = "（デモモードでは和訳を作りません。本番では、ここに AI の参考訳が出ます）";
@@ -208,7 +209,7 @@
       await wait(120);
       const db = load();
       const se = sess(db, s);
-      const out = { code: se.code, phase: se.phase, topic: topicOf(se) };
+      const out = { code: se.code, phase: se.phase, lesson: lessonOpen(se), topic: topicOf(se) };
       if (cls) {
         const st = studentId({ cls, num });
         needLogin(db, se, st, token);
@@ -222,7 +223,7 @@
       await wait(200);
       const db = load();
       const se = sess(db, p.s);
-      if (se.phase !== "vote") err("今は投票の時間ではありません", 409);
+      if (!lessonOpen(se)) err("続きは本文を学習した後で", 409);
       const st = studentId(p);
       needLogin(db, se, st, p.token);
       db.votes = db.votes.filter((x) => !(x.session === se.code && x.student === st));
@@ -234,8 +235,11 @@
       await wait(500);
       const db = load();
       const se = sess(db, p.s);
-      const round = ROUND_OF_PHASE[se.phase];
-      if (!round) err("今は英文を書く時間ではありません", 409);
+      const open = lessonOpen(se);
+      const round = p.round || (open ? "post" : "pre");
+      if (round !== "pre" && round !== "post") err("どちらの英文かが正しくありません");
+      if (round === "pre" && open) err("本文を読む前の英文は、もう書けません", 409);
+      if (round === "post" && !open) err("続きは本文を学習した後で", 409);
       const st = studentId(p);
       needLogin(db, se, st, p.token);
       if (!STANCES[round].includes(p.stance)) err(round === "pre" ? "Yes・No・Not sure のどれかを選んでください" : "Yes か No を選んでください");
@@ -294,6 +298,7 @@
       return {
         role,
         phase: se.phase,
+        lesson: lessonOpen(se),
         topic: topicOf(se),
         votes: db.votes.filter((x) => x.session === se.code),
         writings: db.writings.filter((x) => x.session === se.code && x.upd >= (since || 0)).map(strip),
@@ -305,9 +310,9 @@
       const db = load();
       const c = code(s);
       if (!/^[A-Z0-9_-]{1,20}$/.test(c)) err("セッションコードが正しくありません");
-      db.sessions[c] = db.sessions[c] || { code: c, phase: "vote", topic: C.DEFAULT_TOPIC, summary: null, obsPass: DEMO_OBSERVER_KEY };
+      db.sessions[c] = db.sessions[c] || { code: c, phase: "pre", topic: C.DEFAULT_TOPIC, summary: null, obsPass: DEMO_OBSERVER_KEY };
       save(db);
-      return { code: c, phase: db.sessions[c].phase, topic: topicOf(db.sessions[c]) };
+      return { code: c, phase: db.sessions[c].phase, lesson: lessonOpen(db.sessions[c]), topic: topicOf(db.sessions[c]) };
     },
     async password(s, key, password) {
       const db = load();
@@ -333,9 +338,11 @@
     },
     async phase(s, key, phase) {
       const db = load();
-      sess(db, s).phase = phase;
+      const se = sess(db, s);
+      if (!["pre", "lesson", "vote", "wait", "writing", "closed"].includes(phase)) err("phase が正しくありません");
+      se.phase = phase;
       save(db);
-      return { code: code(s), phase };
+      return { code: se.code, phase, lesson: lessonOpen(se) };
     },
     async summarize(s) {
       await wait(1500);
@@ -372,7 +379,7 @@
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
       db.logins = db.logins.filter((x) => x.session !== se.code);
-      se.phase = "vote";
+      se.phase = "pre";
       se.summary = null;
       save(db);
       return { ok: true };

@@ -40,6 +40,14 @@
   .card.wait-hero { background: var(--cookie); color: var(--cream); border-color: transparent; box-shadow: var(--shadow-lg); }
   .card.wait-hero .muted { color: rgba(251,247,238,0.6); }
   .wait-hero .big { font-size: 46px; line-height: 1.15; font-weight: 900; font-family: var(--font-en); color: var(--pop); letter-spacing: -0.01em; }
+  #stopCard .big { font-family: var(--font); font-size: 30px; }
+  .debate-hints { list-style: none; text-align: left; max-width: 520px; margin: 20px auto 0; padding: 0; display: grid; gap: 6px; }
+  .debate-hints:empty { display: none; }
+  .debate-hints li { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 7px 12px; font-size: 14px; color: rgba(251,247,238,0.75); }
+  .debate-hints b { display: block; font-family: var(--font-en); font-size: 15.5px; color: var(--cream); }
+
+  /* 次へ進むボタン（生徒が自分で順番に進む） */
+  .next-btn { width: 100%; min-height: 56px; font-size: 17px; }
 
   /* ライティング */
   .stance-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -178,15 +186,18 @@
       <button data-v="unsure">Not sure<span>まだわからない</span></button>
     </div>
     <p id="voteMsg" class="muted"></p>
+    <button id="btnToDebate" class="btn btn-primary next-btn" disabled>次へ：ディベート →</button>
   </section>
 
-  <!-- ディベート中 -->
-  <section id="v-wait" class="hidden">
+  <!-- ディベート -->
+  <section id="v-wait" class="stack hidden">
+    <p class="step">Step 2：ミニ・ディベート</p>
     <div class="card wait-hero">
       <div class="big">Debate time!</div>
       <p>タブレットを置いて、ディベートに集中しよう。</p>
-      <p class="muted small">ライティングが始まると、この画面が自動で切り替わります。</p>
+      <ul class="debate-hints" id="debateHints"></ul>
     </div>
+    <button id="btnToWrite" class="btn btn-primary next-btn">ディベートが終わったら：英文を書く →</button>
   </section>
 
   <!-- ライティング（本文を読む前／授業の後） -->
@@ -226,18 +237,14 @@
     <div class="done-head"><h2>提出しました！</h2><span class="badge" id="doneRound"></span></div>
     <p class="muted" id="doneLead" style="margin:0"></p>
     <div data-writings></div>
-    <div data-reflect></div>
-  </section>
-
-  <!-- 終了 -->
-  <section id="v-closed" class="stack hidden">
-    <div class="card wait-hero">
-      <div class="big">Thank you!</div>
-      <p>今日の授業はここまでです。</p>
+    <!-- 読む前の英文を出した後：研究授業の部が開くまで、ここで止まる -->
+    <div class="card wait-hero hidden" id="stopCard">
+      <div class="big">続きは本文を学習した後で</div>
+      <p class="muted small" style="margin:6px 0 0">AI の問いかけを手がかりに、本文を読んでいこう。</p>
     </div>
-    <div data-writings></div>
     <div data-reflect></div>
-    <div class="card">
+    <!-- 授業の後：振り返りを保存したら出す -->
+    <div class="card hidden" id="nextQ">
       <h2>Next question</h2>
       <p class="en" id="finalQ" style="font-size:19px;font-weight:700;white-space:pre-line;margin:0"></p>
       <p class="muted" id="finalQja"></p>
@@ -272,16 +279,20 @@
   }
 
   let T = window.OREO_TOPIC(); // いまのセッションのトピック（文言）。サーバーから id を受け取ったら applyTopic で入れ替える
-  const ROUND_OF_PHASE = { pre: "pre", writing: "post" };
   const STANCES = { pre: ["yes", "no", "unsure"], post: ["yes", "no"] };
   const STANCE_EN = { yes: "Yes", no: "No", unsure: "Not sure" };
 
   const params = new URLSearchParams(location.search);
   // show = 英文の表示（orig：自分の英文／diff：直したところ／fixed：添削後）。最初は自分の英文を見せ、コメントと問いかけを先に読ませる
-  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", token: "", phase: null, mine: null, view: "", topic: "", round: "", stance: "", show: "orig", openFix: {}, fbSig: "" };
+  // lesson = 研究授業の部が開いているか（先生がモニターで1回だけ開く。練習のトピックは最初から開いている）
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", token: "", phase: null, lesson: false, mine: null, view: "", topic: "", round: "", doneRound: "", stance: "", show: "orig", openFix: {}, fbSig: "" };
   const sid = () => `${st.s}_${st.cls}-${st.num}`;
   const draftKey = (round) => `oreolive_draft2_${sid()}_${round}`;
   const reflectKey = () => `oreolive_reflect_${sid()}`;
+  // 研究授業の部で、どこまで進んだか（投票 → ディベート → 英文）。生徒が「次へ」を押して進む。この端末に覚えておく
+  const stepKey = () => `oreolive_step_${sid()}`;
+  const getStep = () => store.get(stepKey()) || "";
+  const setStep = (v) => store.set(stepKey(), v);
   const RETRY_AFTER = 45000; // 提出からこの時間がたってもコメントが届かなければ「もう一度たのむ」を出す
 
   /* ---------- 初期化 ---------- */
@@ -295,6 +306,9 @@
     $$("[data-no-ja]").forEach((e) => (e.textContent = T.NO_JA));
     $("#finalQ").textContent = T.FINAL_QUESTION;
     $("#finalQja").textContent = T.FINAL_QUESTION_JA;
+    const H = T.DEBATE_HINTS || {};
+    $("#debateHints").innerHTML = [["Yes 側の立論", H.yes], ["No 側の立論", H.no], ["反論", H.rebut]]
+      .filter(([, en]) => en).map(([ja, en]) => `<li>${esc(ja)}<b>${esc(en)}</b></li>`).join("");
     $("#exprTitle").textContent = T.EXPRESSIONS_TITLE;
     $("#exprGrid").innerHTML = T.EXPRESSIONS.map(([en, ja]) => `<span class="en">${esc(en)}</span><span class="muted">${esc(ja)}</span>`).join("");
     // 書きかけの文章は消さず、書き出しの候補と立場のボタンだけを入れ替える
@@ -321,36 +335,37 @@
 
   /* ---------- 画面の切り替え ---------- */
   function show(view) {
-    $("#main").classList.toggle("wide", view === "done" || view === "closed");
+    $("#main").classList.toggle("wide", view === "done");
     if (st.view === view) return;
     st.view = view;
-    ["login", "vote", "wait", "write", "done", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
+    ["login", "vote", "wait", "write", "done"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
     // 見えなくなった画面の振り返り欄は空にする（次に開いたとき、最新の内容で作り直す。書きかけはこの端末に残っている）
     $$("[data-reflect]").forEach((e) => { if (!e.closest("#v-" + view)) { e.innerHTML = ""; delete e.dataset.sid; } });
     window.scrollTo(0, 0);
   }
+  // 先生の画面とは連動しない。生徒が自分で順番に進む：
+  //   本文を読む前の英文 →（続きは本文を学習した後で）→ 最初の考え → ディベート → 授業の後の英文 → 振り返り
   function render() {
     if (!st.phase) return show("login");
     $("#who").textContent = `${st.cls}組${st.num}番${st.grp ? " · G" + st.grp : ""}`;
     const mine = st.mine || {};
-    if (st.phase === "vote") {
-      $$("#voteBtns button").forEach((b) => b.classList.toggle("on", mine.vote === b.dataset.v));
-      $("#voteMsg").textContent = mine.vote ? "送信しました。先生の指示を待ってください（選び直すこともできます）。" : "";
-      return show("vote");
-    }
-    if (st.phase === "wait") return show("wait");
-    const round = ROUND_OF_PHASE[st.phase];
-    if (round) {
-      if (mine[round]) { renderDone(round); return show("done"); }
-      setupWrite(round);
+    if (mine.post) { renderDone("post"); return show("done"); }
+    if (!st.lesson) {
+      // 研究授業の部が開くまで：読む前の英文を書き、出したらここで止まる
+      if (mine.pre) { renderDone("pre"); return show("done"); }
+      setupWrite("pre");
       return show("write");
     }
-    if (st.phase === "closed") {
-      renderWritings($("#v-closed [data-writings]"), "");
-      renderReflect($("#v-closed [data-reflect]"));
-      return show("closed");
-    }
+    const step = getStep();
+    if (step === "write") { setupWrite("post"); return show("write"); }
+    if (step === "debate" && mine.vote) return show("wait");
+    $$("#voteBtns button").forEach((b) => b.classList.toggle("on", mine.vote === b.dataset.v));
+    $("#voteMsg").textContent = mine.vote ? "送信しました（選び直すこともできます）。ディベートが始まったら「次へ」を押そう。" : "";
+    $("#btnToDebate").disabled = !mine.vote;
+    return show("vote");
   }
+  $("#btnToDebate").addEventListener("click", () => { setStep("debate"); render(); });
+  $("#btnToWrite").addEventListener("click", () => { setStep("write"); render(); });
 
   /* ---------- ログイン ---------- */
   $("#btnStart").addEventListener("click", async () => {
@@ -366,7 +381,7 @@
     try {
       const lg = await API.login({ s, cls: id.cls, num: id.num, grp, name });
       const res = await API.state(s, id.cls, id.num, lg.token);
-      Object.assign(st, { s, cls: id.cls, num: id.num, grp, token: lg.token, phase: res.phase, mine: res.mine, round: "", fbSig: "" });
+      Object.assign(st, { s, cls: id.cls, num: id.num, grp, token: lg.token, phase: res.phase, lesson: !!res.lesson, mine: res.mine, round: "", fbSig: "" });
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp, token: st.token });
       $("#inName").value = "";
@@ -414,12 +429,13 @@
     try {
       const res = await API.state(st.s, st.cls, st.num, st.token);
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
-      const changed = res.phase !== st.phase;
+      const changed = !!res.lesson !== st.lesson; // 先生が研究授業の部を開いた（または読む前に戻した）
       st.mine = res.mine || st.mine;
       st.phase = res.phase;
+      st.lesson = !!res.lesson;
       if (changed) { st.view = ""; render(); }
-      else if (st.phase === "vote") render();
-      else if (fbSignature() !== st.fbSig && (st.view === "done" || st.view === "closed")) rerenderWritings();
+      else if (st.view === "vote") render();
+      else if (fbSignature() !== st.fbSig && st.view === "done") rerenderWritings();
     } catch (e) { authLost(e); /* 一時的な通信エラーは無視して次回再試行 */ }
   }
 
@@ -452,7 +468,7 @@
     st.round = round;
     $("#ta").dataset.sid = sid();
     const pre = round === "pre";
-    $("#writeStep").textContent = pre ? "本文を読む前に：今の考えを英語で書こう" : "Step 2：ディベートを踏まえて、今の考えを英語で書こう";
+    $("#writeStep").textContent = pre ? "本文を読む前に：今の考えを英語で書こう" : "Step 3：ディベートを踏まえて、今の考えを英語で書こう";
     $("#writeLead").textContent = pre
       ? "まだ習っていないので、正解はありません。今の考えを、思いつくだけ英語で書こう。わからない単語は日本語のままでも大丈夫。"
       : "ディベートで出た理由や具体例も使ってみよう。たくさん書けたら、それだけ考えが伝わります。";
@@ -524,10 +540,10 @@
     btn.textContent = "提出しています…";
     const round = st.round;
     try {
-      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, body: $("#ta").value, token: st.token });
+      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, round, stance: st.stance, body: $("#ta").value, token: st.token });
       store.del(draftKey(round));
       st.mine = Object.assign({}, st.mine, { [res.round]: { stance: res.stance, body: $("#ta").value.trim(), words: res.words, at: res.at, feedback: null } });
-      try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine || st.mine; st.phase = r.phase; } catch {}
+      try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine || st.mine; st.phase = r.phase; st.lesson = !!r.lesson; } catch {}
       st.view = "";
       st.show = "orig";
       render();
@@ -536,7 +552,7 @@
     } catch (e) {
       if (authLost(e)) return; // 書きかけはこの端末に残っているので、ログインし直せば戻る
       toast(e.message, true);
-      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine; st.phase = r.phase; st.view = ""; render(); } catch {} }
+      if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine; st.phase = r.phase; st.lesson = !!r.lesson; st.view = ""; render(); } catch {} }
     } finally {
       btn.disabled = false;
       btn.textContent = "提出する";
@@ -547,6 +563,9 @@
   function renderDone(round) {
     const mine = st.mine || {};
     const both = round === "post" && mine.pre;
+    st.doneRound = round;
+    $("#stopCard").classList.toggle("hidden", round !== "pre"); // 読む前の英文を出したら、研究授業の部が開くまでここで止まる
+    showNextQ();
     $("#doneRound").textContent = round === "pre" ? "本文を読む前" : both ? "授業の後" : "";
     $("#doneRound").classList.toggle("hidden", !$("#doneRound").textContent);
     $("#doneLead").textContent = round === "pre"
@@ -557,8 +576,12 @@
   }
   // コメントが届いたときなどに、英文の部分だけを描き直す（振り返りの入力中の文字は消さない）
   function rerenderWritings() {
-    const v = st.view === "closed" ? "#v-closed" : "#v-done";
-    renderWritings($(v + " [data-writings]"), st.view === "closed" ? "" : ROUND_OF_PHASE[st.phase] || "");
+    renderWritings($("#v-done [data-writings]"), st.doneRound);
+  }
+  // 最後の問い：授業の後の英文を出し、振り返りを保存したら出す
+  function showNextQ() {
+    const post = st.mine && st.mine.post;
+    $("#nextQ").classList.toggle("hidden", !(post && post.reflection && st.doneRound === "post"));
   }
 
   // 英文のカード（読む前・授業の後）。focus は今のラウンド
@@ -712,6 +735,7 @@
         lastSaved = res.reflection || "";
         if (st.mine.post) st.mine.post.reflection = lastSaved;
         store.del(reflectKey());
+        showNextQ();
         const t = new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
         mark();
         if (lastSaved) state.textContent = `保存しました（${t}）`;
@@ -731,7 +755,7 @@
   if (saved && saved.s && saved.s === st.s && saved.cls && saved.token) {
     API.state(st.s, saved.cls, saved.num, saved.token)
       .then((res) => {
-        Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", token: saved.token, phase: res.phase, mine: res.mine });
+        Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", token: saved.token, phase: res.phase, lesson: !!res.lesson, mine: res.mine });
         if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
         render();
         startPolling();
