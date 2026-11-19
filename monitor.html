@@ -42,6 +42,9 @@
   .qr-card { text-align: center; }
   .qr-card .qr svg { width: min(300px, 70vw); height: auto; border-radius: 12px; }
   .url { font-family: var(--font-en); font-size: 13px; word-break: break-all; color: var(--ink-2); background: var(--surface-2); padding: 8px 12px; border-radius: 10px; }
+  .pw-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .pw-row .pw { font-family: var(--font-en); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; background: var(--surface-2); padding: 3px 14px; border-radius: 10px; }
+  .pw-row .pw.unset { color: var(--fix); font-family: var(--font); font-size: 15px; letter-spacing: 0; }
   .teacher-view { margin-top: 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--cookie); border-radius: var(--radius); padding: 14px 18px; }
 
   /* 投票 */
@@ -140,9 +143,11 @@
   .hbars2 .b { background: #c9c6bc; } .hbars2 .a { background: var(--cookie); }
   .hcol .x { text-align: center; font-family: var(--font-en); font-weight: 700; font-size: 13px; color: var(--ink-2); margin-top: 6px; border-top: 1px solid var(--line); padding-top: 4px; }
 
-  /* Reply / 問い */
-  .reply-ov { font-size: clamp(20px, 2vw, 30px); font-weight: 800; line-height: 1.45; margin: 4px 0 12px; }
-  .reply-list { margin: 0; padding-left: 1.2em; font-size: clamp(19px, 1.9vw, 28px); line-height: 1.6; }
+  /* 振り返り */
+  .rf-card { padding: clamp(18px, 2.6vw, 36px); }
+  .rf-prompt { font-size: clamp(22px, 2.4vw, 38px); font-weight: 900; line-height: 1.5; margin: 4px 0 16px; }
+  .rf-hints { margin: 0; padding-left: 1.3em; font-size: clamp(18px, 1.8vw, 28px); line-height: 1.7; color: var(--ink-2); }
+  /* 新たな問い */
   .final { text-align: center; padding-top: clamp(20px, 6vh, 80px); }
   .final .quote { display: inline-block; font-family: var(--font-en); font-weight: 700; font-size: clamp(18px, 1.8vw, 28px); color: var(--cream); background: var(--cookie); padding: 6px 22px; border-radius: 999px; letter-spacing: 0.04em; }
   .final .q { font-family: var(--font-en); font-weight: 900; color: var(--ink); letter-spacing: -0.02em; font-size: clamp(32px, 4.4vw, 70px); line-height: 1.25; white-space: pre-line; margin: 28px 0; }
@@ -178,7 +183,7 @@
     <button data-tab="debate"><span class="kbd">2</span>ディベート</button>
     <button data-tab="write"><span class="kbd">3</span>ライティング</button>
     <button data-tab="results"><span class="kbd">4</span>結果</button>
-    <button data-tab="reply"><span class="kbd">5</span>Reply Challenge</button>
+    <button data-tab="reflect"><span class="kbd">5</span>振り返り</button>
     <button data-tab="final"><span class="kbd">6</span>新たな問い</button>
   </nav>
 
@@ -198,11 +203,14 @@
       </details>
       <div class="qr-grid">
         <div class="card qr-card"><div class="ttl">生徒用</div><div class="qr" id="qrStudent"></div><p class="url" id="urlStudent"></p></div>
-        <div class="card qr-card"><div class="ttl">参観者用（指導案に貼付）</div><div class="qr" id="qrObserver"></div><p class="url" id="urlObserver"></p></div>
+        <div class="card qr-card"><div class="ttl">参観者用（指導案に貼付）</div><div class="qr" id="qrObserver"></div><p class="url" id="urlObserver"></p>
+          <div class="pw-row"><span class="field-label" style="margin:0">参観者用パスワード</span><span class="pw" id="pwShow"></span><button class="btn btn-sm" id="pwToggle">表示</button><button class="btn btn-sm" id="pwEdit">決める・変える</button></div>
+          <p class="small muted" style="margin:6px 0 0">QR と URL にはパスワードを入れていません。参観の先生方には、口頭や校内の連絡でお伝えください（校外の方には伝えない）。授業の後にパスワードを変えると、それまでの参観者は開けなくなります。</p>
+        </div>
       </div>
       <div class="teacher-view">
         <button class="btn" id="btnTeacherView">先生用の一覧を開く（別のタブ）</button>
-        <span class="small muted">生徒一人ひとりの英文（読む前・授業の後）と、添削後の英文・和訳を並べて読めます。生徒の英文がすべて見えるので、<b>モニターに映しているときは開かないでください</b>。</span>
+        <span class="small muted">生徒一人ひとりの英文（読む前・授業の後）を、和訳、AI のコメント・問いかけ・添削、振り返りと一緒に読めます。教員キーで開くので、パスワードは要りません。生徒の英文がすべて見えるので、<b>モニターに映しているときは開かないでください</b>。</span>
       </div>
       <div class="row" style="margin-top:18px">
         <button class="btn" id="btnCsv">データを CSV で保存</button>
@@ -275,7 +283,7 @@
         <div>
           <div class="ttl">提出</div>
           <div class="row" style="align-items:baseline;gap:8px"><span class="huge submit-big" id="wN">0</span><span class="huge" style="font-size:40px;color:var(--ink-3)" id="wDwrap">/ <span id="wD">0</span></span><span class="huge" style="font-size:40px;color:var(--ink-3)" id="wUnit">人</span></div>
-          <div class="wstats"><span>平均 <b id="wAvg">0</b> words</span><span>添削した人 <b id="wCor">0</b></span></div>
+          <div class="wstats"><span>平均 <b id="wAvg">0</b> words</span><span>AI のコメントが届いた人 <b id="wFb">0</b></span></div>
           <div class="groups" id="wGroups"></div>
           <label class="small muted row" style="margin-top:14px;gap:6px"><input type="checkbox" id="wShowStance"> 賛否の割合を表示する</label>
           <div id="wStance" class="hidden" style="height:44px;margin-top:8px"></div>
@@ -301,21 +309,28 @@
       <div id="rWords" class="hidden"></div>
     </section>
 
-    <!-- 5 Reply Challenge -->
-    <section class="pane hidden" data-pane="reply">
-      <div class="subtabs">
-        <div class="seg" id="replyTabs">
-          <button data-side="no" class="on">No派の考えに Yes派として返す</button>
-          <button data-side="yes">Yes派の考えに No派として返す</button>
-        </div>
-      </div>
+    <!-- 5 振り返り（時間調整を兼ねる） -->
+    <section class="pane hidden" data-pane="reflect">
       <div class="write-layout">
-        <div class="card" id="replyCard"></div>
-        <div class="card timer-card">
-          <p class="ph" id="rpPh">Reply in pairs</p>
-          <p class="who">30 seconds each — “I see your point, but …”</p>
-          <div class="clock huge" id="rpClock">1:00</div>
-          <div class="timer-ctrl"><button class="btn btn-primary" id="rpToggle">▶ スタート</button><button class="btn btn-ghost" id="rpReset">↺</button></div>
+        <div class="card rf-card">
+          <div class="ttl">振り返り — Reflection（日本語で）</div>
+          <p class="rf-prompt" id="rfPrompt"></p>
+          <ul class="rf-hints" id="rfHints"></ul>
+          <p class="muted" style="margin:16px 0 0">タブレットの「📝 振り返り」に書いて、「保存する」を押そう。何度でも書き直せます。</p>
+        </div>
+        <div>
+          <div class="card timer-card">
+            <p class="ph">Reflection</p>
+            <div class="clock huge" id="rfClock">5:00</div>
+            <div class="prog"><div id="rfProg"></div></div>
+            <div class="timer-ctrl">
+              <button class="btn btn-primary" id="rfToggle">▶ スタート</button>
+              <button class="btn" id="rfMinus">−1分</button>
+              <button class="btn" id="rfPlus">＋1分</button>
+              <button class="btn btn-ghost" id="rfReset">↺</button>
+            </div>
+          </div>
+          <div class="wstats" style="margin-top:16px"><span>振り返りを書いた人 <b id="rfN">0</b> / <span id="rfD">0</span> 人</span></div>
         </div>
       </div>
     </section>
@@ -343,6 +358,7 @@
     <span class="stat" id="fPreWrap">読む前 <b id="fPre">0</b></span>
     <span class="stat">投票 <b id="fVotes">0</b></span>
     <span class="stat"><span id="fPostLbl">授業の後</span> <b id="fPost">0</b></span>
+    <span class="stat">振り返り <b id="fRf">0</b></span>
     <span class="stat" id="fConn"></span>
     <button class="btn btn-sm" id="btnFull">全画面</button>
   </footer>
@@ -374,7 +390,7 @@
   const LABEL = { yes: ["Yes", T.YES_JA], no: ["No", T.NO_JA], unsure: ["Not sure", "まだわからない"] };
 
   /* ================= データ ================= */
-  const S = { s: "", key: "", observerKey: "" };
+  const S = { s: "", key: "", observerPassword: "" };
   const D = { since: 0, writings: new Map(), votes: [], summary: null, phase: null, topic: "", ok: true, loaded: false };
   const byRound = (round) => [...D.writings.values()].filter((w) => w.round === round);
   function counts(list, key) { const c = {}; list.forEach((x) => (c[x[key]] = (c[x[key]] || 0) + 1)); return c; }
@@ -392,6 +408,9 @@
     $("#finalQja").textContent = T.FINAL_QUESTION_JA;
     $("#finalQuote").textContent = T.QUOTE || "";
     $("#finalQuote").classList.toggle("hidden", !T.QUOTE);
+    const R = T.REFLECTION || { PROMPT: "", HINTS: [] };
+    $("#rfPrompt").textContent = R.PROMPT;
+    $("#rfHints").innerHTML = (R.HINTS || []).map((h) => `<li>${esc(h)}</li>`).join("");
     $("#selTopic").value = D.topic;
     try { debate.refresh(); } catch {} // 最初の1回は、ディベートのタイマーがまだ用意されていない
     try { setMode(wModeAuto(), false); } catch {}
@@ -416,7 +435,7 @@
       D.phase = res.phase;
       applyTopic(res.topic);
       store.set("oreolive_monitor", { s: S.s, key });
-      try { const info = await API.info(S.s, key); S.observerKey = info.observerKey; $("#modelShow").textContent = "AI: " + info.model; } catch {}
+      try { const info = await API.info(S.s, key); S.observerPassword = info.observerPassword || ""; $("#modelShow").textContent = "AI: " + info.model; } catch {}
       $("#login").classList.add("hidden");
       $("#appMon").classList.remove("hidden");
       $$("[data-code]").forEach((e) => (e.textContent = S.s));
@@ -436,12 +455,31 @@
   }
   function drawQRs() {
     const stu = new URL("index.html", location.href); stu.search = "?s=" + encodeURIComponent(S.s);
-    const obs = new URL("observer.html", location.href); obs.search = `?s=${encodeURIComponent(S.s)}&k=${encodeURIComponent(S.observerKey || "")}`;
+    // 参観者用の QR・URL にはパスワードを入れない（指導案が校外に出ても、パスワードがなければ読めない）
+    const obs = new URL("observer.html", location.href); obs.search = "?s=" + encodeURIComponent(S.s);
     $("#qrStudent").innerHTML = qrSvg(stu.href); $("#urlStudent").textContent = stu.href;
     $("#qrObserver").innerHTML = qrSvg(obs.href); $("#urlObserver").textContent = obs.href;
     $("#qrVote").innerHTML = qrSvg(stu.href);
     $("#qrWrite").innerHTML = qrSvg(stu.href);
+    renderPw();
   }
+  // 参観者用パスワード：ふだんは伏せて表示（モニターに映っていても見えないように）
+  let pwVisible = false;
+  function renderPw() {
+    const pw = S.observerPassword;
+    const el = $("#pwShow");
+    el.classList.toggle("unset", !pw);
+    el.textContent = !pw ? "⚠ まだ決まっていません（参観者用ページが開けません）" : pwVisible ? pw : "●".repeat(Math.min(pw.length, 10));
+    $("#pwToggle").classList.toggle("hidden", !pw);
+    $("#pwToggle").textContent = pwVisible ? "隠す" : "表示";
+  }
+  $("#pwToggle").onclick = () => { pwVisible = !pwVisible; renderPw(); };
+  $("#pwEdit").onclick = async () => {
+    const v = prompt("参観者用のパスワード（4〜40文字）を入力してください。参観の先生方に、口頭や校内の連絡でお伝えします。", S.observerPassword || "");
+    if (v === null) return;
+    try { const res = await API.password(S.s, S.key, v); S.observerPassword = res.observerPassword; pwVisible = false; renderPw(); toast("参観者用パスワードを保存しました"); }
+    catch (e) { toast(e.message, true); }
+  };
   // 先生用の一覧：参観者用ページを、この端末に保存した教員キーで開く（URL にキーは入れない）
   $("#btnTeacherView").onclick = () => {
     const u = new URL("observer.html", location.href);
@@ -459,11 +497,11 @@
     renderActive();
   }
   $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) showTab(b.dataset.tab); });
-  const TAB_KEYS = ["setup", "vote", "debate", "write", "results", "reply", "final"];
+  const TAB_KEYS = ["setup", "vote", "debate", "write", "results", "reflect", "final"];
   document.addEventListener("keydown", (e) => {
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || $("#appMon").classList.contains("hidden")) return;
     if (/^[0-6]$/.test(e.key)) showTab(TAB_KEYS[+e.key]);
-    else if (e.key === " ") { e.preventDefault(); if (tab === "debate") debate.toggle(); else if (tab === "write") (wTimer.running ? wTimer.pause() : wTimer.start()); else if (tab === "reply") rpTimer.toggle(); }
+    else if (e.key === " ") { e.preventDefault(); if (tab === "debate") debate.toggle(); else if (tab === "write") (wTimer.running ? wTimer.pause() : wTimer.start()); else if (tab === "reflect") rfTimer.toggle(); }
     else if (e.key === "ArrowRight" && tab === "debate") debate.next();
     else if (e.key === "ArrowLeft" && tab === "debate") debate.prev();
   });
@@ -508,13 +546,14 @@
     $("#fVotes").textContent = D.votes.length;
     $("#fPost").textContent = byRound("post").length;
     $("#fPostLbl").textContent = T.PRE_WRITING ? "授業の後" : "提出";
+    $("#fRf").textContent = byRound("post").filter((w) => w.reflection).length;
     $("#fConn").textContent = D.ok ? "" : "⚠ 通信エラー（再試行中）";
   }
   function renderActive() {
     if (tab === "vote") renderVote();
     if (tab === "write") renderWrite();
     if (tab === "results") renderResults();
-    if (tab === "reply") renderReply();
+    if (tab === "reflect") renderReflectTab();
   }
 
   /* ================= 1 最初の考え ================= */
@@ -618,7 +657,7 @@
     const elapsed = total - left;
     const ban = $("#wBanner");
     if (left <= 0 && total) { ban.textContent = "Time's up! まだ提出していない人は、今すぐ提出しよう"; ban.classList.remove("hidden"); }
-    else if (elapsed >= W[wMode].hint() * 60) { ban.textContent = "Submit soon! 書き終わったら提出して、「添削する」を押してみよう"; ban.classList.remove("hidden"); }
+    else if (elapsed >= W[wMode].hint() * 60) { ban.textContent = "Submit soon! 書き終わったら提出して、AI のコメントと問いかけを読もう"; ban.classList.remove("hidden"); }
     else ban.classList.add("hidden");
   }, () => beep(4, 660));
   function setMode(m, byTeacher) {
@@ -655,7 +694,7 @@
     $("#wDwrap").classList.toggle("hidden", !post);
     $("#wUnit").classList.toggle("hidden", post);
     $("#wAvg").textContent = list.length ? Math.round(list.reduce((a, w) => a + (w.words || 0), 0) / list.length) : 0;
-    $("#wCor").textContent = list.filter((w) => w.corrected).length;
+    $("#wFb").textContent = list.filter((w) => w.feedback).length;
     const members = {}, done = {};
     if (post) D.votes.forEach((v) => v.grp && (members[v.grp] = (members[v.grp] || 0) + 1));
     list.forEach((w) => w.grp && (done[w.grp] = (done[w.grp] || 0) + 1));
@@ -765,29 +804,26 @@
     }
   }
 
-  /* ================= 5 Reply Challenge ================= */
-  let replySide = "no";
-  $("#replyTabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; replySide = b.dataset.side; $$("#replyTabs button").forEach((x) => x.classList.toggle("on", x === b)); renderReply(); });
-  function renderReply() {
-    const x = D.summary && D.summary.after && D.summary.after[replySide];
-    const as = replySide === "no" ? "Yes" : "No";
-    $("#replyCard").innerHTML = x && x.count && (x.points.length || x.overview)
-      ? `<div class="ttl">${LABEL[replySide][0]}派のおもな考え — あなたは <b>${as}</b> 派として英語で返そう</div>
-         ${x.overview ? `<p class="reply-ov">${esc(x.overview)}</p>` : ""}
-         ${x.points.length ? `<ol class="reply-list">${x.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>` : ""}`
-      : `<div class="empty">先に「結果」タブで「AI でまとめる」を押してください。</div>`;
+  /* ================= 5 振り返り（時間調整を兼ねる） ================= */
+  function renderReflectTab() {
+    const post = byRound("post");
+    $("#rfN").textContent = post.filter((w) => w.reflection).length;
+    $("#rfD").textContent = post.length;
   }
-  const rpTimer = (() => {
-    let half = false;
+  const rfTimer = (() => {
     const t = makeTimer((left, total, running) => {
-      $("#rpClock").textContent = fmt(left);
-      $("#rpPh").textContent = left > 30 || !total ? "Person 1" : "Person 2";
-      $("#rpToggle").textContent = running ? "一時停止" : "▶ スタート";
-      if (running && left <= 30 && !half) { half = true; beep(2, 990); }
+      $("#rfClock").textContent = fmt(left);
+      $("#rfProg").style.width = total ? ((total - left) / total) * 100 + "%" : "0";
+      $("#rfToggle").textContent = running ? "一時停止" : "▶ スタート";
     }, () => beep(3));
-    t.set(60);
-    $("#rpToggle").onclick = () => { actx || beep(0); t.toggle(); };
-    $("#rpReset").onclick = () => { half = false; t.set(60); };
+    const minutes = () => C.REFLECTION_MINUTES || 5;
+    t.set(minutes() * 60);
+    // 時間調整：残り時間を1分ずつ増減（止めたまま・動かしたまま、どちらでもよい）
+    const shift = (sec) => { const run = t.running; t.pause(); t.set(Math.max(30, t.left + sec)); if (run) t.start(); };
+    $("#rfToggle").onclick = () => { actx || beep(0); t.toggle(); };
+    $("#rfMinus").onclick = () => shift(-60);
+    $("#rfPlus").onclick = () => shift(60);
+    $("#rfReset").onclick = () => t.set(minutes() * 60);
     return { toggle: () => t.toggle() };
   })();
 

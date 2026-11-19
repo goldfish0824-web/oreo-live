@@ -81,13 +81,26 @@
   .wtext { white-space: pre-wrap; font-size: 17px; line-height: 1.8; overflow-wrap: anywhere; margin: 0; }
   .wtext.fixed { color: var(--good); }
   .wnote { font-size: 13px; color: var(--ink-3); margin: 6px 0 0; }
-  .correct-area { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
-  .correct-area .btn { width: 100%; min-height: 50px; font-size: 16px; }
-  .correct-area .btn small { font-weight: 600; opacity: 0.8; }
+  /* AI のコメント・問いかけ・添削 */
+  .fb { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .fb .btn { width: 100%; min-height: 48px; font-size: 16px; }
+  .fb-wait { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ink-2); font-weight: 700; }
+  .spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--surface-2); border-top-color: var(--cookie); animation: spin 0.9s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .qs { background: var(--pop-soft); border: 1px solid #ecd9a0; border-radius: 14px; padding: 10px 14px; }
+  .qs h3 { margin: 0 0 4px; }
+  .q-list { margin: 0; padding-left: 1.3em; }
+  .q-list li { padding: 5px 0; }
+  .q-en { display: block; font-family: var(--font-en); font-weight: 700; font-size: 16px; line-height: 1.45; }
+  .q-ja { display: block; font-size: 14px; color: var(--ink-2); }
+  details.fixes { border: 1px solid var(--line); border-radius: 14px; padding: 9px 14px; background: var(--surface); }
+  details.fixes summary { cursor: pointer; font-weight: 800; color: var(--good); }
+  details.fixes[open] summary { margin-bottom: 6px; }
   .fix-list { list-style: none; padding: 0; margin: 0; }
   .fix-list li { padding: 8px 0; border-bottom: 1px solid var(--surface-2); }
   .fix-list li:last-child { border-bottom: 0; }
-  .comment { margin: 10px 0 0; background: var(--good-soft); border-radius: 12px; padding: 9px 13px; font-size: 15px; }
+  .comment { margin: 0; background: var(--good-soft); border-radius: 12px; padding: 9px 13px; font-size: 15px; }
+  @media (max-width: 759px) { .cmp.two .wcard.focus { order: -1; } } /* 縦に並ぶときは、今の英文を先に */
   del { color: var(--fix); background: var(--fix-soft); text-decoration-thickness: 2px; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   ins { color: var(--good); background: var(--good-soft); text-decoration: none; font-weight: 700; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   .why { display: block; font-size: 14px; color: var(--ink-2); }
@@ -102,8 +115,19 @@
   .stamp-got { display: inline-flex; align-items: center; gap: 8px; background: var(--pop-soft); border-radius: 14px; padding: 6px 12px 6px 8px; }
   .stamp-got .emo { font-size: 28px; line-height: 1; }
   .stamp-got small { display: block; font-size: 12px; color: var(--ink-2); line-height: 1.2; }
-  .stamp-got b.en { display: block; font-size: 14px; line-height: 1.2; }
-  .stamp-got .cnt { font-family: var(--font-en); font-size: 17px; margin-left: 2px; }
+  .stamp-got b { display: block; font-size: 14px; line-height: 1.25; }
+
+  /* 読む前の問いかけ（授業の後のライティング中） */
+  details.preq { border: 1px solid #ecd9a0; background: var(--pop-soft); border-radius: var(--radius); padding: 12px 16px; }
+  details.preq summary { font-weight: 800; cursor: pointer; }
+
+  /* 振り返り */
+  .reflect { border: 2px solid var(--cookie); }
+  .reflect h2 { margin-bottom: 6px; }
+  .reflect .prompt { margin: 0 0 6px; font-weight: 700; }
+  .reflect ul { margin: 0 0 10px; padding-left: 1.2em; color: var(--ink-2); font-size: 14px; }
+  .reflect textarea { font-size: 16px; line-height: 1.7; min-height: 150px; resize: vertical; }
+  .reflect .row { margin-top: 8px; }
 
   .overlay { position: fixed; inset: 0; background: rgba(21,23,30,0.9); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--cream); z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; text-align: center; padding: 20px; }
   .overlay .muted { color: rgba(251,247,238,0.65); }
@@ -120,7 +144,7 @@
 </style>
 </head>
 <body>
-<div id="demoBanner" class="demo-banner hidden">デモモード：AIは使わず、サンプルの添削を表示します（config.js に WORKER_URL を設定すると本番になります）</div>
+<div id="demoBanner" class="demo-banner hidden">デモモード：AIは使わず、サンプルのコメント・問いかけ・添削を表示します（config.js に WORKER_URL を設定すると本番になります）</div>
 <header class="top">
   <div class="brand"><span class="logo"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>Student</small></div>
   <div class="who" id="who" title="組・番号を変える場合はタップ"></div>
@@ -185,10 +209,15 @@
       <span class="field-label" id="stanceLabel"></span>
       <div class="stance-pick" id="stancePick"></div>
     </div>
+    <details class="preq hidden" id="preQ" open>
+      <summary>📌 読む前に AI から出た問いかけ — 今なら答えられる？</summary>
+      <ol class="q-list" id="preQList" style="margin-top:6px"></ol>
+    </details>
     <div class="write-box">
       <div class="chips" id="chips"></div>
       <textarea id="ta" rows="12" spellcheck="false" autocapitalize="sentences" placeholder="Write in English."></textarea>
       <p class="tip">💡 <b>O</b>pinion（意見）→ <b>R</b>eason（理由）→ <b>E</b>xample（具体例）→ <b>O</b>pinion（まとめ）の順に書くと伝わりやすくなります。この形にそろえなくても大丈夫。思いついたことを、どんどん書こう。</p>
+      <p class="tip">📣 提出すると、AI からコメントと問いかけが届きます。英文は先生方（参観の先生を含む）も読んで、スタンプを送ってくれることがあります。名前は表示されません。</p>
     </div>
     <details class="expr" id="exprBox">
       <summary id="exprTitle"></summary>
@@ -206,6 +235,7 @@
     <p class="muted" id="doneLead" style="margin:0"></p>
     <div data-stamps></div>
     <div data-writings></div>
+    <div data-reflect></div>
   </section>
 
   <!-- 終了 -->
@@ -216,6 +246,7 @@
     </div>
     <div data-stamps></div>
     <div data-writings></div>
+    <div data-reflect></div>
     <div class="card">
       <h2>Next question</h2>
       <p class="en" id="finalQ" style="font-size:19px;font-weight:700;white-space:pre-line;margin:0"></p>
@@ -226,7 +257,7 @@
 
 <div id="loading" class="overlay hidden">
   <div class="cookies"><i>O</i><i>R</i><i>E</i><i>O</i></div>
-  <div><b>AI があなたの英文を添削しています…</b><br><span class="muted small">10〜30秒ほどかかります。画面を閉じずに待ってください。</span></div>
+  <div><b>AI にもう一度たのんでいます…</b><br><span class="muted small">10〜30秒ほどかかります。画面を閉じずに待ってください。</span></div>
 </div>
 
 <script src="config.js"></script>
@@ -256,9 +287,12 @@
   const STANCE_EN = { yes: "Yes", no: "No", unsure: "Not sure" };
 
   const params = new URLSearchParams(location.search);
-  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, view: "", topic: "", round: "", stance: "", show: "diff", stampTotal: -1 };
+  // show = 英文の表示（orig：自分の英文／diff：直したところ／fixed：添削後）。最初は自分の英文を見せ、コメントと問いかけを先に読ませる
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", phase: null, mine: null, view: "", topic: "", round: "", stance: "", show: "orig", openFix: {}, stampSeen: -1, fbSig: "" };
   const sid = () => `${st.s}_${st.cls}-${st.num}`;
   const draftKey = (round) => `oreolive_draft2_${sid()}_${round}`;
+  const reflectKey = () => `oreolive_reflect_${sid()}`;
+  const RETRY_AFTER = 45000; // 提出からこの時間がたってもコメントが届かなければ「もう一度たのむ」を出す
 
   /* ---------- 初期化 ---------- */
   if (API.demo) $("#demoBanner").classList.remove("hidden");
@@ -300,6 +334,8 @@
     if (st.view === view) return;
     st.view = view;
     ["login", "vote", "wait", "write", "done", "closed"].forEach((v) => $("#v-" + v).classList.toggle("hidden", v !== view));
+    // 見えなくなった画面の振り返り欄は空にする（次に開いたとき、最新の内容で作り直す。書きかけはこの端末に残っている）
+    $$("[data-reflect]").forEach((e) => { if (!e.closest("#v-" + view)) { e.innerHTML = ""; delete e.dataset.sid; } });
     window.scrollTo(0, 0);
   }
   function render() {
@@ -320,6 +356,7 @@
     }
     if (st.phase === "closed") {
       renderWritings($("#v-closed [data-writings]"), "");
+      renderReflect($("#v-closed [data-reflect]"));
       renderStamps();
       return show("closed");
     }
@@ -333,7 +370,7 @@
     btn.disabled = true;
     try {
       const res = await API.state(s, $("#inCls").value, $("#inNum").value);
-      Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine, round: "", stampTotal: -1 });
+      Object.assign(st, { s, cls: $("#inCls").value, num: $("#inNum").value, grp: $("#inGrp").value, phase: res.phase, mine: res.mine, round: "", stampSeen: -1, fbSig: "" });
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp });
       st.view = "";
@@ -349,11 +386,21 @@
     if (st.view && st.view !== "login" && confirm("組・番号を入力し直しますか？（書いた英文は消えません）")) { st.phase = null; st.view = ""; render(); }
   });
 
-  /* ---------- 状態の取得（5秒ごと） ---------- */
+  /* ---------- 状態の取得（5秒ごと。AI のコメントを待っている間は3秒ごと） ---------- */
   let timer = null;
+  const waitingFb = () => ["pre", "post"].some((r) => st.mine && st.mine[r] && !st.mine[r].feedback);
   function startPolling() {
-    clearInterval(timer);
-    timer = setInterval(refresh, 5000);
+    clearTimeout(timer);
+    timer = setTimeout(async () => { await refresh(); startPolling(); }, waitingFb() ? 3000 : 5000);
+  }
+  // コメントが届いた・「もう一度たのむ」を出す時間になった、を見分ける印
+  function fbSignature() {
+    return ["pre", "post"].map((r) => {
+      const w = st.mine && st.mine[r];
+      if (!w) return "-";
+      if (w.feedback) return "F";
+      return Date.now() - (w.at || 0) >= RETRY_AFTER ? "R" : "W";
+    }).join("");
   }
   async function refresh() {
     if (!st.phase) return;
@@ -361,14 +408,14 @@
       const res = await API.state(st.s, st.cls, st.num);
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       const changed = res.phase !== st.phase;
-      const before = st.mine || {};
       st.mine = res.mine || st.mine;
-      // 添削の結果はこの端末で受け取ったものを優先（別の端末で押した場合はサーバーの値を使う）
-      ["pre", "post"].forEach((r) => { if (before[r] && before[r].correction && st.mine[r] && !st.mine[r].correction) st.mine[r].correction = before[r].correction; });
       st.phase = res.phase;
       if (changed) { st.view = ""; render(); }
       else if (st.phase === "vote") render();
-      else renderStamps();
+      else {
+        if (fbSignature() !== st.fbSig && (st.view === "done" || st.view === "closed")) rerenderWritings();
+        renderStamps();
+      }
     } catch (e) { /* 一時的な通信エラーは無視して次回再試行 */ }
   }
 
@@ -407,6 +454,10 @@
       : "ディベートで出た理由や具体例も使ってみよう。たくさん書けたら、それだけ考えが伝わります。";
     $("#stanceLabel").innerHTML = pre ? "今のあなたの考えは？" : `あなたの本当の意見は？<span class="muted small">（ディベートで担当した立場と違ってもOK）</span>`;
     $("#exprBox").classList.toggle("hidden", pre); // 使える表現は授業の後だけ（読む前に答えを見せない）
+    // 授業の後：読む前に AI から出た問いかけを見せる（読む前の英文そのものは、提出するまで見せない）
+    const preQs = !pre && st.mine && st.mine.pre && st.mine.pre.feedback ? st.mine.pre.feedback.questions || [] : [];
+    $("#preQ").classList.toggle("hidden", !preQs.length);
+    $("#preQList").innerHTML = preQs.map((q) => `<li><span class="q-en">${esc(q.en)}</span><span class="q-ja">${esc(q.ja)}</span></li>`).join("");
     const d = store.get(draftKey(round)) || {};
     st.stance = STANCES[round].includes(d.stance) ? d.stance : "";
     $("#ta").value = d.body || "";
@@ -471,11 +522,13 @@
     try {
       const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: st.stance, body: $("#ta").value });
       store.del(draftKey(round));
-      st.mine = Object.assign({}, st.mine, { [res.round]: { stance: res.stance, body: $("#ta").value.trim(), words: res.words, at: res.at, correction: null } });
+      st.mine = Object.assign({}, st.mine, { [res.round]: { stance: res.stance, body: $("#ta").value.trim(), words: res.words, at: res.at, feedback: null } });
       try { const r = await API.state(st.s, st.cls, st.num); st.mine = r.mine || st.mine; st.phase = r.phase; } catch {}
       st.view = "";
+      st.show = "orig";
       render();
-      toast("提出しました！");
+      startPolling(); // コメントが届くまで、少し早めに確かめる
+      toast("提出しました！ AI のコメントを待っています…");
     } catch (e) {
       toast(e.message, true);
       if (e.status === 409) { try { const r = await API.state(st.s, st.cls, st.num); st.mine = r.mine; st.phase = r.phase; st.view = ""; render(); } catch {} }
@@ -485,29 +538,36 @@
     }
   });
 
-  /* ---------- 提出の後：自分の英文・添削・読む前との比較 ---------- */
+  /* ---------- 提出の後：自分の英文・AI のコメントと問いかけ・添削・読む前との比較 ---------- */
   function renderDone(round) {
     const mine = st.mine || {};
     const both = round === "post" && mine.pre;
     $("#doneRound").textContent = round === "pre" ? "本文を読む前" : both ? "授業の後" : "";
     $("#doneRound").classList.toggle("hidden", !$("#doneRound").textContent);
     $("#doneLead").textContent = round === "pre"
-      ? "本文を学んだあとに、もう一度同じ問いで英文を書きます。そのとき、今日の英文と並べて見られます。"
-      : both ? "本文を読む前に書いた英文と並べてみよう。考え方や表現は、どう変わったかな？" : "「添削する」を押すと、AI が英文を直して見せてくれます。";
+      ? "AI からのコメントと問いかけを読もう。問いかけの答えは、Lesson 8 を読みながら探してみよう。本文を学んだあとに、もう一度同じ問いで英文を書きます。"
+      : both ? "読む前に書いた英文と並べてみよう。考え方や表現は、どう変わったかな？ 最後に、下の振り返りを書こう。" : "AI からのコメントと問いかけを読もう。最後に、下の振り返りを書こう。";
     renderWritings($("#v-done [data-writings]"), round);
+    renderReflect($("#v-done [data-reflect]"));
     renderStamps();
   }
+  // コメントが届いたときなどに、英文の部分だけを描き直す（振り返りの入力中の文字は消さない）
+  function rerenderWritings() {
+    const v = st.view === "closed" ? "#v-closed" : "#v-done";
+    renderWritings($(v + " [data-writings]"), st.view === "closed" ? "" : ROUND_OF_PHASE[st.phase] || "");
+  }
 
-  // 英文のカード（読む前・授業の後）。focus は今のラウンド（添削ボタンを目立たせる）
+  // 英文のカード（読む前・授業の後）。focus は今のラウンド
   function renderWritings(target, focus) {
     const mine = st.mine || {};
+    st.fbSig = fbSignature();
     const list = ["pre", "post"].filter((r) => mine[r]);
     if (!list.length) { target.innerHTML = ""; return; }
     const two = list.length === 2;
-    const anyFixed = list.some((r) => mine[r].correction);
+    const anyFb = list.some((r) => mine[r].feedback);
     const label = (r) => (two || r === "pre" ? (r === "pre" ? "本文を読む前" : "授業の後") : "あなたの英文");
-    const seg = anyFixed
-      ? `<div class="row"><div class="seg" id="showSeg">${[["orig", "自分の英文"], ["diff", "直したところ"], ["fixed", "添削後の英文"]].map(([k, l]) => `<button data-show="${k}" class="${st.show === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`
+    const seg = anyFb
+      ? `<div class="row"><span class="small muted">英文の表示</span><div class="seg" id="showSeg">${[["orig", "自分の英文"], ["diff", "直したところ"], ["fixed", "添削後の英文"]].map(([k, l]) => `<button data-show="${k}" class="${st.show === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`
       : "";
     const growth = two
       ? (() => {
@@ -519,42 +579,54 @@
       <div class="stack">
         ${growth}
         ${seg}
-        <div class="cmp ${two ? "two" : ""}">${list.map((r) => card(r, mine[r], label(r), r === focus, anyFixed)).join("")}</div>
-        ${anyFixed ? `<p class="small muted" style="margin-top:10px">AI の添削は参考です。まちがえることや、ばらつきがあります。どう直すかは、自分で考えて決めよう。</p>` : ""}
+        <div class="cmp ${two ? "two" : ""}">${list.map((r) => card(r, mine[r], label(r), r === focus, two)).join("")}</div>
+        ${anyFb ? `<p class="small muted" style="margin-top:10px">AI のコメントと添削は参考です。まちがえることや、ばらつきがあります。どう直すかは、自分で考えて決めよう。</p>` : ""}
       </div>`;
     const sg = target.querySelector("#showSeg");
     if (sg) sg.onclick = (ev) => {
       const b = ev.target.closest("button");
       if (!b) return;
       st.show = b.dataset.show;
-      $$("[data-writings]").forEach((t) => { if (t.closest("section:not(.hidden)")) renderWritings(t, focus); });
+      rerenderWritings();
     };
-    target.querySelectorAll("[data-correct]").forEach((b) => (b.onclick = () => doCorrect(b.dataset.correct)));
+    target.querySelectorAll("details.fixes").forEach((d) => d.addEventListener("toggle", () => { st.openFix[d.dataset.fix] = d.open; }));
+    target.querySelectorAll("[data-retry]").forEach((b) => (b.onclick = () => doRetry(b.dataset.retry)));
   }
-  function card(round, w, label, focus, anyFixed) {
-    const c = w.correction;
+  function card(round, w, label, focus, two) {
+    const f = w.feedback;
     let text = esc(w.body), cls = "";
-    if (c && st.show === "diff") text = diffHtml(w.body, c.corrected);
-    else if (c && st.show === "fixed") { text = esc(c.corrected); cls = "fixed"; }
-    const note = !c && anyFixed && st.show !== "orig" ? `<p class="wnote">（この英文はまだ添削していません）</p>` : "";
-    const area = c
-      ? `<div class="correct-area">
-          <h3>おもな直し</h3>
-          ${c.points && c.points.length
-            ? `<ul class="fix-list">${c.points.map((p) => `<li>${p.original ? `<del>${esc(p.original)}</del> → ` : ""}<ins>${esc(p.corrected)}</ins><span class="why">${esc(p.why)}</span></li>`).join("")}</ul>`
-            : `<p class="muted" style="margin:0">大きな直しはありませんでした。</p>`}
-          ${c.comment_ja ? `<p class="comment">💬 ${esc(c.comment_ja)}</p>` : ""}
-          ${c.demo ? `<p class="wnote">デモ用のサンプル添削です（AIは使っていません）。</p>` : ""}
-        </div>`
-      : `<div class="correct-area">
-          <button class="btn ${focus ? "btn-primary" : ""}" data-correct="${round}">✏️ 添削する <small>（1回だけ）</small></button>
-          <p class="small muted" style="margin:6px 0 0">AI があなたの英文を直して見せます。押せるのは1回だけです。</p>
-        </div>`;
+    if (f && st.show === "diff") text = diffHtml(w.body, f.corrected);
+    else if (f && st.show === "fixed") { text = esc(f.corrected); cls = "fixed"; }
     return `<div class="wcard ${focus ? "focus" : ""}">
       <div class="wcard-head"><span class="lbl">${label}</span><span class="badge ${esc(w.stance)}">${STANCE_EN[w.stance] || esc(w.stance)}</span><span class="badge">${esc(w.words)} words</span></div>
       <p class="wtext en ${cls}">${text}</p>
-      ${note}
-      ${area}
+      ${fbArea(round, w, two)}
+    </div>`;
+  }
+  // AI のコメント → 問いかけ → 添削（タップで開く）の順に出す
+  function fbArea(round, w, two) {
+    const f = w.feedback;
+    if (!f) {
+      if (Date.now() - (w.at || 0) < RETRY_AFTER) return `<div class="fb"><p class="fb-wait"><span class="spin"></span>AI があなたの英文を読んでいます…（10秒ほど）</p></div>`;
+      return `<div class="fb"><p class="muted" style="margin:0">AI のコメントが、まだ届いていません。</p><button class="btn" data-retry="${round}">🔁 もう一度たのむ</button></div>`;
+    }
+    const qTitle = round === "pre" && two ? "❓ 読む前の問いかけ — 今なら答えられる？" : "❓ 考えてみよう";
+    const qs = f.questions && f.questions.length
+      ? `<div class="qs"><h3>${qTitle}</h3><ol class="q-list">${f.questions.map((q) => `<li><span class="q-en">${esc(q.en)}</span><span class="q-ja">${esc(q.ja)}</span></li>`).join("")}</ol></div>`
+      : "";
+    const pts = f.points || [];
+    const fixes = `<details class="fixes" data-fix="${round}" ${st.openFix[round] ? "open" : ""}>
+        <summary>✏️ 添削を見る（おもな直し ${pts.length}）</summary>
+        ${pts.length
+          ? `<ul class="fix-list">${pts.map((p) => `<li>${p.original ? `<del>${esc(p.original)}</del> → ` : ""}<ins>${esc(p.corrected)}</ins><span class="why">${esc(p.why)}</span></li>`).join("")}</ul>`
+          : `<p class="muted" style="margin:0">大きな直しはありませんでした。</p>`}
+        <p class="small muted" style="margin:8px 0 0">上の「英文の表示」で、直したところや添削後の英文も見られます。</p>
+      </details>`;
+    return `<div class="fb">
+      ${f.comment ? `<p class="comment">💬 ${esc(f.comment)}</p>` : ""}
+      ${qs}
+      ${fixes}
+      ${f.demo ? `<p class="wnote">デモ用のサンプルです（AIは使っていません）。</p>` : ""}
     </div>`;
   }
 
@@ -589,35 +661,83 @@
     return out;
   }
 
-  async function doCorrect(round) {
-    const btns = $$(`[data-correct="${round}"]`);
-    btns.forEach((b) => (b.disabled = true));
+  // 裏での作成が失敗したときだけ、もう一度たのむ
+  async function doRetry(round) {
+    $$(`[data-retry="${round}"]`).forEach((b) => (b.disabled = true));
     $("#loading").classList.remove("hidden");
     try {
-      const res = await API.correct({ s: st.s, cls: st.cls, num: st.num, round });
-      st.mine[round] = Object.assign({}, st.mine[round], { correction: res.correction });
-      st.show = "diff";
-      if (st.view === "done") renderDone(ROUND_OF_PHASE[st.phase] || round);
-      else render();
-      if (res.already) toast("この英文は、すでに添削しています");
+      const res = await API.feedback({ s: st.s, cls: st.cls, num: st.num, round });
+      st.mine[round] = Object.assign({}, st.mine[round], { feedback: res.feedback });
+      rerenderWritings();
     } catch (e) {
       toast(e.message, true);
-      btns.forEach((b) => (b.disabled = false));
+      $$(`[data-retry="${round}"]`).forEach((b) => (b.disabled = false));
     } finally {
       $("#loading").classList.add("hidden");
     }
   }
 
-  /* ---------- 参観の先生から届いたスタンプ ---------- */
+  /* ---------- 振り返り（授業の後の英文を出した人だけ。日本語で、何度でも書き直せる） ---------- */
+  function renderReflect(target) {
+    const post = st.mine && st.mine.post;
+    if (!post) { target.innerHTML = ""; delete target.dataset.sid; return; }
+    if (target.dataset.sid === sid() && target.firstElementChild) return; // 書いている途中の文字を消さない
+    target.dataset.sid = sid();
+    const R = T.REFLECTION || { PROMPT: "読む前と比べて、何が変わった？", HINTS: [] };
+    const draft = store.get(reflectKey());
+    const savedText = post.reflection || "";
+    target.innerHTML = `<div class="card reflect">
+      <h2>📝 振り返り</h2>
+      <p class="prompt">${esc(R.PROMPT)}</p>
+      ${R.HINTS && R.HINTS.length ? `<ul>${R.HINTS.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
+      <textarea rows="6" placeholder="日本語で、自分の言葉で書こう。"></textarea>
+      <div class="row"><span class="small muted" data-rf-state></span><span class="spacer"></span><button class="btn btn-primary" data-rf-save>保存する</button></div>
+      <p class="small muted" style="margin:8px 0 0">何度でも書き直せます。先生と参観の先生方が読みます（モニターには映りません）。</p>
+    </div>`;
+    const ta = target.querySelector("textarea"), state = target.querySelector("[data-rf-state]"), btn = target.querySelector("[data-rf-save]");
+    ta.value = draft && draft.text !== undefined && draft.text !== savedText ? draft.text : savedText;
+    let lastSaved = savedText;
+    const mark = () => { state.textContent = ta.value.trim() === lastSaved.trim() ? (lastSaved ? "保存しました" : "") : "まだ保存していません"; };
+    mark();
+    ta.addEventListener("input", () => { store.set(reflectKey(), { text: ta.value }); mark(); });
+    const saveNow = async (quiet) => {
+      if (ta.value.trim() === lastSaved.trim()) return;
+      btn.disabled = true;
+      try {
+        const res = await API.reflect({ s: st.s, cls: st.cls, num: st.num, text: ta.value });
+        lastSaved = res.reflection || "";
+        if (st.mine.post) st.mine.post.reflection = lastSaved;
+        store.del(reflectKey());
+        const t = new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+        mark();
+        if (lastSaved) state.textContent = `保存しました（${t}）`;
+        if (!quiet) toast("振り返りを保存しました");
+      } catch (e) {
+        if (!quiet) toast(e.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    btn.onclick = () => saveNow(false);
+    ta.addEventListener("blur", () => saveNow(true)); // 保存し忘れても、欄から離れたときに保存する
+  }
+
+  /* ---------- 先生方から届いたスタンプ（「〇〇先生から」） ---------- */
+  const STAMP_OF = Object.fromEntries(C.STAMPS.map((x) => [x.id, x]));
+  const fromName = (n) => (n ? `${n}先生` : "参観の先生");
   function renderStamps() {
-    const got = (st.mine && st.mine.stamps) || {};
-    const list = C.STAMPS.filter((x) => got[x.id] > 0);
-    const total = list.reduce((a, x) => a + got[x.id], 0);
-    if (st.stampTotal >= 0 && total > st.stampTotal) toast("参観の先生から、スタンプが届きました！");
-    st.stampTotal = total;
-    const html = list.length
-      ? `<div class="stamps-got"><h3>参観の先生から、スタンプが届いています</h3><div class="stamp-list">${list
-          .map((x) => `<span class="stamp-got"><span class="emo">${x.emoji}</span><span><b class="en">${esc(x.en)}</b><small>${esc(x.ja)}</small></span><b class="cnt">×${got[x.id]}</b></span>`)
+    const got = ((st.mine && st.mine.stamps) || []).filter((x) => STAMP_OF[x.stamp]);
+    if (st.stampSeen >= 0 && got.length > st.stampSeen) {
+      const fresh = got.slice(st.stampSeen);
+      const x = fresh[fresh.length - 1], sp = STAMP_OF[x.stamp];
+      toast(`📬 ${fromName(x.name)}から ${sp.emoji}「${sp.ja}」のスタンプが届きました！${fresh.length > 1 ? `（ほか ${fresh.length - 1} 件）` : ""}`);
+    }
+    st.stampSeen = got.length;
+    const html = got.length
+      ? `<div class="stamps-got"><h3>先生方から、スタンプが届いています（${got.length}）</h3><div class="stamp-list">${got
+          .slice()
+          .reverse()
+          .map((x) => { const sp = STAMP_OF[x.stamp]; return `<span class="stamp-got" title="${esc(sp.en)}"><span class="emo">${sp.emoji}</span><span><b>${esc(fromName(x.name))}から</b><small>${esc(sp.ja)}</small></span></span>`; })
           .join("")}</div></div>`
       : "";
     $$("[data-stamps]").forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html; });

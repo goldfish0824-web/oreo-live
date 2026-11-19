@@ -8,16 +8,17 @@ window.OREO_CONFIG = {
   MAX_NUMBER: 45,
   GROUPS: 8,
 
-  // ライティング（読む前・授業の後とも、1人1回だけ提出。提出の後に「添削する」を1回だけ押せる）
+  // ライティング（読む前・授業の後とも、1人1回だけ提出。提出すると、AI のコメント・問いかけ・添削が届く）
   PRE_WRITING_MINUTES: 10, // 本文を読む前のライティング（単元前）
   PRE_SUBMIT_HINT_MINUTE: 8, // この時点でモニターに「提出しよう」を表示
   WRITING_MINUTES: 12, // 研究授業のライティング（ディベートの後）
   SUBMIT_HINT_MINUTE: 9,
+  REFLECTION_MINUTES: 5, // 振り返り（モニターの「5 振り返り」タブのタイマー。時間調整を兼ねる）
 
   // 書き出しの候補（生徒画面でタップすると入る。OREO の順に並べている）
   WRITE_CHIPS: ["First of all, ", "This is because ", "For example, ", "In addition, ", "However, ", "Therefore, "],
 
-  // 参観者が送るスタンプ。書いた生徒の画面にだけ届く（モニターには出ない）。id は worker.js の STAMPS とそろえる
+  // 参観者が送るスタンプ。「〇〇先生から」と、書いた生徒の画面にだけ届く（モニターには出ない）。id は worker.js の STAMPS とそろえる
   STAMPS: [
     { id: "nice", emoji: "👍", en: "Nice!", ja: "いいね" },
     { id: "idea", emoji: "💡", en: "Interesting idea", ja: "なるほど" },
@@ -64,6 +65,11 @@ window.OREO_CONFIG = {
       FINAL_QUESTION: "Accepting refugees is one way to save lives.\nWhat else can Japan — and you — do to put “human life first”?",
       FINAL_QUESTION_JA: "受け入れることは命を救う方法の一つ。では「人命第一」のために、日本や私たちにできることは、ほかに何があるだろう？",
       // 生徒画面の「使える表現」（授業の後のライティングだけで出す。本文を読む前には出さない）
+      // 授業の後の振り返り（日本語）。生徒画面とモニターの「5 振り返り」タブに出す
+      REFLECTION: {
+        PROMPT: "本文を読む前に書いた英文と、今日の英文を読み比べよう。自分の考えや英語は、どう変わった？（変わらなかったことも書いてよい）",
+        HINTS: ["考え（立場や理由）は、どう変わった？", "使った英語の表現や、書いた量は？", "本文やディベートで、心に残ったことは？", "AI の問いかけについて、考えたことは？"],
+      },
       EXPRESSIONS_TITLE: "使える表現（資料1）",
       EXPRESSIONS: [
         ["humanitarian obligation", "人道的な義務"],
@@ -95,6 +101,10 @@ window.OREO_CONFIG = {
       QUOTE: "",
       FINAL_QUESTION: "Convenience is nice, but someone has to work for it.\nWhat other “convenient” things should we think about again?",
       FINAL_QUESTION_JA: "便利さの裏には、働いている人がいる。ほかにも、見直したほうがよい「便利なもの」はあるだろうか？",
+      REFLECTION: {
+        PROMPT: "ディベートの前と今とで、自分の考えはどう変わった？（変わらなかった人は、何がはっきりした？）",
+        HINTS: ["相手の意見で、なるほどと思ったことは？", "自分の理由は、はっきりした？", "英語で書いてみて、できたこと・難しかったことは？", "AI の問いかけについて、考えたことは？"],
+      },
       EXPRESSIONS_TITLE: "使える表現",
       EXPRESSIONS: [
         ["labor shortage", "人手不足"],

@@ -36,10 +36,22 @@
   .tr.wait { color: var(--ink-3); }
   body.no-tr .tr { display: none; }
   .col.empty-col { display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 14px; background: transparent; border: 1.5px dashed var(--line); }
-  details.fix { margin-top: 8px; font-size: 14px; }
-  details.fix summary { cursor: pointer; font-weight: 700; color: var(--good); }
-  details.fix .en-text { font-size: 15px; color: var(--good); margin-top: 6px; }
-  details.fix ul { margin: 6px 0 0; padding-left: 1.1em; }
+  details.ai { margin-top: 8px; font-size: 14px; }
+  details.ai summary { cursor: pointer; font-weight: 700; color: var(--cookie); }
+  details.ai[open] summary { margin-bottom: 6px; }
+  details.ai .box { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  details.ai h4 { margin: 0; font-size: 13px; color: var(--ink-2); }
+  details.ai ol, details.ai ul { margin: 0; padding-left: 1.2em; }
+  details.ai .q-en { display: block; font-family: var(--font-en); font-weight: 700; }
+  details.ai .q-ja { display: block; color: var(--ink-2); }
+  details.ai .en-text { font-size: 15px; color: var(--good); }
+  .ai-wait { font-size: 13px; color: var(--ink-3); margin: 8px 0 0; }
+  .refl { background: #fff; border: 1.5px solid var(--cookie); border-radius: 14px; padding: 10px 14px; font-size: 14.5px; }
+  .refl b { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 2px; }
+  .refl p { margin: 0; white-space: pre-wrap; line-height: 1.65; }
+  .namebar { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: rgba(251,247,238,0.75); }
+  .namebar input { width: 9em; padding: 4px 10px; font-size: 14px; border-radius: 999px; }
+  .namebar.need input { outline: 3px solid var(--pop); }
   del { color: var(--fix); background: var(--fix-soft); padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   ins { color: var(--good); background: var(--good-soft); text-decoration: none; font-weight: 700; padding: 0 3px; border-radius: 4px; font-family: var(--font-en); }
   .growth { font-size: 13px; color: var(--good); font-weight: 800; }
@@ -61,8 +73,10 @@
 
 <div id="login" class="login card hidden" style="display:flex;flex-direction:column;gap:12px">
   <div class="brand"><span class="logo dark"><i>O</i><i>R</i><i>E</i><i>O</i></span>Live<span class="live-dot"></span><small>参観者用ページ</small></div>
-  <div><label class="field-label" for="inS">セッションコード</label><input id="inS" type="text"></div>
-  <div><label class="field-label" for="inK">参観者キー</label><input id="inK" type="password"></div>
+  <p class="small muted" style="margin:0" id="loginMsg">授業の先生からお知らせしたパスワードを入力してください。</p>
+  <div><label class="field-label" for="inS">セッションコード</label><input id="inS" type="text" autocomplete="off"></div>
+  <div><label class="field-label" for="inK">パスワード</label><input id="inK" type="password" autocomplete="off"></div>
+  <div><label class="field-label" for="inName">お名前（例：田中）</label><input id="inName" type="text" maxlength="20" autocomplete="off" placeholder="例：田中"><p class="small muted" style="margin:4px 0 0">スタンプを送ると、生徒の画面に「田中先生から」のように届きます。</p></div>
   <button class="btn btn-primary" id="btnGo">表示する</button>
 </div>
 
@@ -73,9 +87,10 @@
       <div class="spacer"></div>
       <div class="stats"><span id="sPreWrap">読む前 <b id="sPre">0</b></span><span>投票 <b id="sVotes">0</b></span><span><span id="sPostLbl">授業の後</span> <b id="sPost">0</b></span></div>
     </div>
+    <div class="row" style="margin-top:8px"><label class="namebar" id="nameBar">スタンプの送り主：<input id="hdName" type="text" maxlength="20" placeholder="お名前" autocomplete="off">先生</label></div>
     <div class="filters">
       <div class="seg" id="fStance">
-        <button data-f="all" class="on">すべて</button><button data-f="yes">Yes</button><button data-f="no">No</button><button data-f="sent">スタンプを送った</button>
+        <button data-f="all" class="on">すべて</button><button data-f="yes">Yes</button><button data-f="no">No</button><button data-f="none">スタンプがまだの生徒</button><button data-f="sent">自分が送った</button>
       </div>
       <div class="seg" id="fSort">
         <button data-s="new" class="on">新しい順</button><button data-s="grp">グループ順</button>
@@ -93,11 +108,12 @@
         <li>本文の数字や表現、ディベートで出た具体例が使われているか。</li>
         <li>書いた量や、英語の表現がどう変わったか。</li>
       </ol>
-      <p class="small muted" style="margin:4px 0 0">心に残った英文には、スタンプを送ってください（何人にでも、何種類でも送れます。もう一度押すと取り消せます）。スタンプは<b>書いた生徒の画面にだけ</b>届きます。モニターには出ません。誰が送ったかも表示されません。</p>
-      <p class="small muted" style="margin:4px 0 0">英文の下の日本語は、AI による参考訳です。生徒の英語の誤りは直さずに訳しています（生徒の画面には出ません）。上の「英語のみ」で消せます。</p>
+      <p class="small muted" style="margin:4px 0 0">心に残った英文には、スタンプを送ってください（何人にでも、何種類でも送れます。もう一度押すと取り消せます）。スタンプは<b>「〇〇先生から」と、書いた生徒の画面にだけ</b>届きます。モニターには出ません。まだスタンプが届いていない生徒は、上の「スタンプがまだの生徒」で絞り込めます。</p>
+      <p class="small muted" style="margin:4px 0 0">英文の下の日本語は、AI による参考訳です。生徒の英語の誤りは直さずに訳しています（生徒の画面には出ません）。上の「英語のみ」で消せます。「AI のコメント・問いかけ・添削を見る」を押すと、生徒の画面に届いた AI のコメントと問いかけ、添削後の英文が読めます。</p>
+      <p class="small muted" style="margin:4px 0 0">このページのパスワードは、校外の方にお伝えにならないようお願いします。</p>
     </details>
     <div class="note hidden" id="teacherNote" style="margin-bottom:16px;background:var(--fix-soft);border:1px solid #f0c6c1;border-radius:14px;padding:11px 15px;font-size:14px">
-      先生用の一覧です。生徒が「添削する」を押した英文は、添削後の英文も読めます。<b>モニターに映さないでください。</b>
+      先生用の一覧です（教員キーで開いています）。<b>モニターに映さないでください。</b>
     </div>
     <div id="list" class="list"></div>
   </main>
@@ -114,6 +130,7 @@
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
   };
   function toast(msg, isErr) {
     const el = document.createElement("div");
@@ -126,14 +143,30 @@
 
   if (API.demo) $("#demoBanner").classList.remove("hidden");
   const params = new URLSearchParams(location.search);
-  const S = { s: (params.get("s") || "").toUpperCase(), key: params.get("k") || "", role: "observer" };
+  const S = { s: (params.get("s") || "").trim().toUpperCase(), key: "", role: "observer", teacher: params.get("as") === "teacher" };
   // 先生用の一覧（モニターの「準備」タブから開く）：URL にキーを入れず、この端末に保存された教員キーを使う
-  if (params.get("as") === "teacher") {
+  if (S.teacher) {
     const mon = store.get("oreolive_monitor") || {};
     if (mon.key && (!S.s || mon.s === S.s)) { S.key = mon.key; S.s = S.s || mon.s; }
+  } else {
+    // 参観者：パスワードはこの端末に覚えておく（URL や QR には入れない）
+    const pw = store.get("oreolive_observer_pw") || {};
+    if (pw.s && pw.key && (!S.s || pw.s === S.s)) { S.key = pw.key; S.s = S.s || pw.s; }
+    if (API.demo && !S.key && S.s) S.key = API.demoObserverKey;
   }
-  if (API.demo && !S.key) S.key = API.demoObserverKey;
-  // 参観者の端末ごとの印（名前は使わない）。同じ端末なら、送ったスタンプを取り消せる
+  // スタンプの送り主の名前（生徒の画面に「〇〇先生から」と届く）
+  const getName = () => String(store.get("oreolive_observer_name") || "");
+  function setName(v) {
+    const n = String(v || "").replace(/\s+/g, " ").trim().replace(/\s*先生$/, "").slice(0, 20);
+    store.set("oreolive_observer_name", n);
+    $("#hdName").value = n;
+    $("#inName").value = n;
+    $("#nameBar").classList.toggle("need", !n);
+    return n;
+  }
+  setName(getName());
+  $("#hdName").addEventListener("change", () => { if (setName($("#hdName").value)) toast(`「${getName()}先生」として送ります`); });
+  // 参観者の端末ごとの印。同じ端末なら、送ったスタンプを取り消せる
   let OBS = store.get("oreolive_observer_id");
   if (!OBS) {
     OBS = "o-" + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
@@ -141,20 +174,42 @@
   }
   const D = { since: 0, writings: new Map(), votes: [], stamps: {}, mine: new Set(), loaded: false };
   let T = window.OREO_TOPIC();
-  let filter = "all", sort = "new";
-  const openFix = new Set();
+  let filter = "all", sort = "new", pollTimer = null;
+  const openAi = new Set();
 
-  if (S.s && S.key) start();
-  else { $("#login").classList.remove("hidden"); $("#inS").value = S.s; }
-  $("#btnGo").onclick = () => { S.s = $("#inS").value.trim().toUpperCase(); S.key = $("#inK").value; start(); };
+  function showLogin(msg) {
+    clearInterval(pollTimer);
+    $("#app").classList.add("hidden");
+    $("#login").classList.remove("hidden");
+    $("#inS").value = S.s;
+    $("#inK").value = API.demo ? API.demoObserverKey : ""; // デモでは、パスワードの初期値を入れておく
+    if (msg) $("#loginMsg").textContent = msg;
+  }
+  if (S.s && S.key && (S.teacher || getName())) start();
+  else showLogin(S.teacher ? "先生用の一覧は、モニターと同じ端末で開いてください（教員キーがこの端末に保存されていません）。" : "");
+  $("#btnGo").onclick = () => {
+    S.s = $("#inS").value.trim().toUpperCase();
+    S.key = $("#inK").value.trim();
+    S.teacher = false;
+    if (!S.s || !S.key) return toast("セッションコードとパスワードを入力してください", true);
+    if (!setName($("#inName").value)) return toast("お名前を入力してください（スタンプと一緒に生徒に届きます）", true);
+    start();
+  };
+  $("#inK").addEventListener("keydown", (e) => e.key === "Enter" && $("#btnGo").click());
 
   async function start() {
     try {
       await poll(true);
+      if (!S.teacher) store.set("oreolive_observer_pw", { s: S.s, key: S.key });
       $("#login").classList.add("hidden");
       $("#app").classList.remove("hidden");
-      setInterval(poll, 6000);
-    } catch (e) { toast(e.message, true); $("#login").classList.remove("hidden"); }
+      clearInterval(pollTimer);
+      pollTimer = setInterval(poll, 6000);
+    } catch (e) {
+      if (e.status === 401 && !S.teacher) store.del("oreolive_observer_pw");
+      toast(e.message, true);
+      showLogin();
+    }
   }
 
   async function poll(throwErr) {
@@ -163,13 +218,17 @@
       S.role = res.role || "observer";
       T = window.OREO_TOPIC(res.topic);
       D.votes = res.votes || [];
-      // 和訳や添削が後から付くと upd が進むので、同じ id は上書きする
+      // 和訳・AI のコメント・振り返りが後から付くと upd が進むので、同じ id は上書きする
       (res.writings || []).forEach((w) => { D.writings.set(w.id, w); D.since = Math.max(D.since, w.upd || 0); });
       D.stamps = res.stamps || {};
       D.mine = new Set((res.myStamps || []).map(([st, sp]) => st + "|" + sp));
       D.loaded = true;
       render();
-    } catch (e) { if (throwErr) throw e; }
+    } catch (e) {
+      if (throwErr) throw e;
+      // パスワードが変わったときは、入力し直してもらう
+      if (e.status === 401) { store.del("oreolive_observer_pw"); showLogin("パスワードが変わりました。授業の先生に確認して、入力し直してください。"); }
+    }
   }
 
   $("#fStance").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; filter = b.dataset.f; $$("#fStance button").forEach((x) => x.classList.toggle("on", x === b)); render(); };
@@ -195,6 +254,7 @@
     return [...m.values()];
   }
   const sentTo = (student) => C.STAMPS.some((sp) => D.mine.has(student + "|" + sp.id));
+  const stampTotal = (student) => Object.values(D.stamps[student] || {}).reduce((a, n) => a + n, 0);
 
   function render() {
     const teacher = S.role === "teacher";
@@ -211,56 +271,67 @@
     let items = all;
     const now = (x) => x.post || x.pre;
     if (filter === "yes" || filter === "no") items = items.filter((x) => now(x).stance === filter);
+    if (filter === "none") items = items.filter((x) => !stampTotal(x.student));
     if (filter === "sent") items = items.filter((x) => sentTo(x.student));
     const last = (x) => Math.max(x.pre ? x.pre.at : 0, x.post ? x.post.at : 0);
     items.sort(sort === "new" ? (a, b) => last(b) - last(a) : (a, b) => (+a.grp || 99) - (+b.grp || 99) || a.student.localeCompare(b.student, "ja", { numeric: true }));
-    // 開いている「添削後の英文」の状態を保ったまま描き直す
-    $$("details.fix").forEach((d) => (d.open ? openFix.add(d.dataset.id) : openFix.delete(d.dataset.id)));
+    // 開いている「AI のコメント・問いかけ・添削」の状態を保ったまま描き直す
+    $$("details.ai").forEach((d) => (d.open ? openAi.add(d.dataset.id) : openAi.delete(d.dataset.id)));
+    const empty = { sent: "まだスタンプを送った英文はありません", none: "すべての生徒に、スタンプが届いています" };
     $("#list").innerHTML = items.length
-      ? items.map((x) => card(x, teacher)).join("")
-      : `<div class="empty">${filter === "sent" ? "まだスタンプを送った英文はありません" : "英文の提出を待っています…（6秒ごとに自動で更新されます）"}</div>`;
+      ? items.map(card).join("")
+      : `<div class="empty">${empty[filter] || "英文の提出を待っています…（6秒ごとに自動で更新されます）"}</div>`;
   }
 
-  function column(w, round, teacher, both) {
+  // AI のコメント・問いかけ・添削（生徒の画面に届いたもの）。ボタンで開く
+  function aiBox(w) {
+    const f = w.feedback;
+    if (!f) return Date.now() - (w.at || 0) < 120000 ? `<p class="ai-wait">AI のコメントを作成中…</p>` : "";
+    const pts = f.points || [];
+    return `<details class="ai" data-id="${w.id}" ${openAi.has(String(w.id)) ? "open" : ""}><summary>🤖 AI のコメント・問いかけ・添削を見る</summary>
+      <div class="box">
+        ${f.comment ? `<div><h4>コメント</h4>${esc(f.comment)}</div>` : ""}
+        ${f.questions && f.questions.length ? `<div><h4>問いかけ</h4><ol>${f.questions.map((q) => `<li><span class="q-en">${esc(q.en)}</span><span class="q-ja">${esc(q.ja)}</span></li>`).join("")}</ol></div>` : ""}
+        <div><h4>添削後の英文</h4><p class="en-text">${esc(f.corrected)}</p></div>
+        ${pts.length ? `<div><h4>おもな直し</h4><ul>${pts.map((p) => `<li>${p.original ? `<del>${esc(p.original)}</del> → ` : ""}<ins>${esc(p.corrected)}</ins> <span class="muted">${esc(p.why)}</span></li>`).join("")}</ul></div>` : ""}
+      </div>
+    </details>`;
+  }
+
+  function column(w, round, both) {
     const label = round === "pre" ? "本文を読む前" : both || T.PRE_WRITING ? "授業の後" : "英文";
     if (!w) return `<div class="col empty-col">${round === "pre" ? "本文を読む前の英文はありません" : "授業の後の英文は、まだです"}</div>`;
     const tr = w.translation
       ? `<p class="tr">${esc(w.translation)}</p>`
       : `<p class="tr wait">${Date.now() - (w.at || 0) < 120000 ? "和訳を作成中…" : "（和訳はありません）"}</p>`;
-    const c = teacher && w.correction;
-    const fix = c
-      ? `<details class="fix" data-id="${w.id}" ${openFix.has(String(w.id)) ? "open" : ""}><summary>添削後の英文を見る</summary>
-          <p class="en-text">${esc(c.corrected)}</p>
-          ${c.points && c.points.length ? `<ul>${c.points.map((p) => `<li>${p.original ? `<del>${esc(p.original)}</del> → ` : ""}<ins>${esc(p.corrected)}</ins> <span class="muted">${esc(p.why)}</span></li>`).join("")}</ul>` : ""}
-          ${c.comment_ja ? `<p class="small" style="margin:6px 0 0">💬 ${esc(c.comment_ja)}</p>` : ""}
-        </details>`
-      : "";
     return `<div class="col ${round}">
       <div class="col-head"><span class="lbl">${label}</span><span class="badge ${esc(w.stance)}">${ST[w.stance] || esc(w.stance)}</span><span class="badge">${esc(w.words)} words</span>
-        ${w.corrected ? `<span class="badge" title="生徒が「添削する」を押しました">✏️ 添削済み</span>` : ""}
         ${w.flag && w.flag !== "ok" ? `<span class="badge" style="background:#fff6db;color:#6b5200" title="AI が、話題からそれている・配慮が必要などと判断した英文です">要確認</span>` : ""}</div>
       <p class="en-text">${esc(w.body)}</p>
       ${tr}
-      ${fix}
+      ${aiBox(w)}
     </div>`;
   }
 
-  function card(x, teacher) {
+  function card(x) {
     const now = x.post || x.pre;
     const both = !!(x.pre && x.post);
     const showPre = T.PRE_WRITING || x.pre;
     const growth = both ? (() => { const d = (x.post.words || 0) - (x.pre.words || 0); return d ? `<span class="growth">${x.pre.words} → ${x.post.words} words（${d > 0 ? "+" : "−"}${Math.abs(d)}）</span>` : ""; })() : "";
     const got = D.stamps[x.student] || {};
+    const total = stampTotal(x.student);
     const stamps = C.STAMPS.map((sp) => {
       const on = D.mine.has(x.student + "|" + sp.id);
       return `<button class="stamp ${on ? "on" : ""}" data-student="${esc(x.student)}" data-stamp="${sp.id}" title="${esc(sp.en)}"><span class="emo">${sp.emoji}</span>${esc(sp.ja)}${got[sp.id] ? `<span class="n">${got[sp.id]}</span>` : ""}</button>`;
     }).join("");
+    const refl = x.post && x.post.reflection ? `<div class="refl"><b>📝 振り返り（生徒が日本語で書いたもの）</b><p>${esc(x.post.reflection)}</p></div>` : "";
     return `<article class="card stu ${esc(now.stance)}">
-      <div class="meta"><span class="who">${x.grp ? "G" + esc(x.grp) + " · " : ""}${esc(x.student.replace("-", "組"))}番</span>${growth}</div>
+      <div class="meta"><span class="who">${x.grp ? "G" + esc(x.grp) + " · " : ""}${esc(x.student.replace("-", "組"))}番</span>${growth}${total ? "" : `<span class="badge" title="この生徒には、まだスタンプが届いていません">スタンプ 0</span>`}</div>
       <div class="cols ${showPre ? "two" : ""}">
-        ${showPre ? column(x.pre, "pre", teacher, both) : ""}
-        ${column(x.post, "post", teacher, both)}
+        ${showPre ? column(x.pre, "pre", both) : ""}
+        ${column(x.post, "post", both)}
       </div>
+      ${refl}
       <div class="stamp-bar"><span class="lead">スタンプを送る</span>${stamps}</div>
     </article>`;
   }
@@ -270,15 +341,21 @@
     if (!b) return;
     const student = b.dataset.student, stamp = b.dataset.stamp, k = student + "|" + stamp;
     const on = !D.mine.has(k);
+    const name = getName();
+    if (on && !name) {
+      $("#nameBar").classList.add("need");
+      $("#hdName").focus();
+      return toast("先に、上の欄にお名前を入れてください（生徒に「〇〇先生から」と届きます）", true);
+    }
     b.disabled = true;
     try {
-      await API.stamp(S.s, S.key, student, stamp, OBS, on);
+      await API.stamp(S.s, S.key, student, stamp, OBS, on, name);
       // 次の取得を待たずに表示を変える
       if (on) D.mine.add(k); else D.mine.delete(k);
       D.stamps[student] = D.stamps[student] || {};
       D.stamps[student][stamp] = Math.max(0, (D.stamps[student][stamp] || 0) + (on ? 1 : -1));
       render();
-      if (on) toast("スタンプを送りました");
+      if (on) toast(`${name}先生から、スタンプを送りました`);
     } catch (err) { toast(err.message, true); b.disabled = false; }
   });
 })();

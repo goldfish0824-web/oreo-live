@@ -45,12 +45,14 @@
     state: (s, cls, num) => http("/api/state" + q({ s, cls, num })),
     vote: (p) => http("/api/vote", { method: "POST", body: p }),
     write: (p) => http("/api/write", { method: "POST", body: p }),
-    correct: (p) => http("/api/correct", { method: "POST", body: p, timeout: 90000 }),
+    feedback: (p) => http("/api/feedback", { method: "POST", body: p, timeout: 90000 }), // コメントが届かなかったときの頼み直し
+    reflect: (p) => http("/api/reflect", { method: "POST", body: p }),
     live: (s, key, since, observer) => http("/api/live" + q({ s, since, observer }), { key }),
-    stamp: (s, key, student, stamp, observer, on) => http("/api/stamp", { method: "POST", key, body: { s, student, stamp, observer, on } }),
+    stamp: (s, key, student, stamp, observer, on, name) => http("/api/stamp", { method: "POST", key, body: { s, student, stamp, observer, on, name } }),
     session: (s, key) => http("/api/admin/session", { method: "POST", key, body: { s } }),
     phase: (s, key, phase) => http("/api/admin/phase", { method: "POST", key, body: { s, phase } }),
     topic: (s, key, topic) => http("/api/admin/topic", { method: "POST", key, body: { s, topic } }),
+    password: (s, key, password) => http("/api/admin/password", { method: "POST", key, body: { s, password } }),
     summarize: (s, key) => http("/api/admin/summarize", { method: "POST", key, body: { s }, timeout: 120000 }),
     clear: (s, key) => http("/api/admin/clear", { method: "POST", key, body: { s } }),
     info: (s, key) => http("/api/admin/info" + q({ s }), { key }),
@@ -58,8 +60,9 @@
   };
 
   /* ---------------- デモ（localStorage） ---------------- */
-  const LS = "oreolive_demo_v2";
-  const DEMO_OBSERVER_KEY = "demo-obs"; // デモで参観者として開くときのキー（それ以外のキーは先生として扱う）
+  const LS = "oreolive_demo_v3";
+  const DEMO_OBSERVER_KEY = "demo-obs"; // デモの参観者用パスワードの初期値（モニターの「準備」タブで変えられる）
+  const DEMO_TEACHER_KEY = "demo"; // デモの教員キー（モニターで別のキーを使ったときは、そのキーも先生として扱う）
   const load = () => {
     let db = null;
     try {
@@ -102,8 +105,30 @@
     [/\bIf I am a refugee\b/g, "If I were a refugee", "事実と違う仮定なので、仮定法（were）にします。"],
   ];
   const JA_WORDS = { 困っている: "in trouble", 可哀想: "pitiful", かわいそう: "pitiful", 不安: "anxious", 人手不足: "labor shortage" };
-  function demoCorrection(body, topic) {
-    let text = body;
+  // デモの問いかけ（本番では AI が生徒の英文に合わせて作る）
+  const DEMO_QUESTIONS = {
+    refugees: {
+      pre: [
+        ["How many refugees do you think Japan accepts in a year?", "日本は1年に何人の難民を受け入れていると思う？"],
+        ["Why do people have to leave their own countries?", "人々はなぜ、自分の国を離れなければならないのだろう？"],
+        ["If you had to leave Japan, what would you need most?", "もしあなたが日本を離れなければならなくなったら、何がいちばん必要？"],
+      ],
+      post: [
+        ["If people in your town felt worried, what would you say to them?", "町の人が不安に感じていたら、あなたは何と言う？"],
+        ["What support do refugees need first when they arrive in Japan?", "難民が日本に着いたとき、まず必要な支援は何だろう？"],
+        ["What would Ms. Ogata say about your idea?", "緒方さんなら、あなたの考えに何と言うだろう？"],
+      ],
+    },
+    konbini: {
+      post: [
+        ["If your favorite store closed at night, how would your life change?", "よく行く店が夜に閉まったら、生活はどう変わる？"],
+        ["How would a night-shift worker answer your opinion?", "夜勤で働く人は、あなたの意見にどう答えるだろう？"],
+      ],
+    },
+  };
+  // デモのコメント・問いかけ・添削：よくある誤りだけを機械的に直す（本番では AI が英文全体を見て作る）
+  function demoFeedback(w, topic, before) {
+    let text = w.body;
     const points = [];
     for (const [re, to, why] of FIXES) {
       const m = text.match(re);
@@ -114,22 +139,34 @@
       points.push({ original: ja, corrected: en, why: "日本語の部分は、英語ではこう言えます。" });
       return en;
     });
-    const hasNumber = /\d/.test(body);
-    return {
-      demo: true,
-      corrected: text,
-      points: points.slice(0, 5),
-      comment_ja: hasNumber ? "数字を根拠に使っていて、説得力があります。" : topic === "konbini" ? "自分の立場がはっきり書けています。" : "自分の考えをはっきり書けています。",
-      at: Date.now(),
-    };
+    const n = words(w.body);
+    const hasNumber = /\d/.test(w.body);
+    const good = hasNumber ? "数字を根拠に使っていて、説得力があります。" : "自分の考えが、自分の言葉ではっきり書けています。";
+    const comment = before
+      ? `読む前（${words(before.body)}語）より多い${n}語で書けました。${good}`
+      : w.round === "pre" ? "今の考えを、思いつくだけ英語で書けています。" + (/[぀-ヿ㐀-鿿]/.test(w.body) ? "日本語の部分も、英語で何と言うか見てみよう。" : "")
+      : good;
+    const qs = ((DEMO_QUESTIONS[topic] || DEMO_QUESTIONS.refugees)[w.round] || DEMO_QUESTIONS.refugees.post).map(([en, ja]) => ({ en, ja }));
+    return { demo: true, comment, questions: qs, corrected: text, points: points.slice(0, 5), at: Date.now() };
   }
 
-  const strip = (w, role) => {
-    const o = Object.assign({}, w, { corrected: !!w.correction });
-    if (role !== "teacher") delete o.correction;
+  const strip = (w) => Object.assign({}, w, { reflection: w.round === "post" ? w.reflection || null : null });
+  const mineOf = (w) => {
+    if (!w) return null;
+    const o = { stance: w.stance, body: w.body, words: w.words, at: w.at, feedback: w.feedback || null };
+    if (w.round === "post") o.reflection = w.reflection || "";
     return o;
   };
-  const mineOf = (w) => (w ? { stance: w.stance, body: w.body, words: w.words, at: w.at, correction: w.correction || null } : null);
+  const cleanName = (v) => String(v ?? "").replace(/\s+/g, " ").trim().replace(/\s*先生$/, "").slice(0, 20);
+  const preOf = (db, se, st) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === "pre");
+  // デモの役割：参観者用パスワードなら参観者、教員キーなら先生
+  function demoRole(se, key) {
+    if (key && key === (se.obsPass || "")) return "observer";
+    let mon = null;
+    try { mon = JSON.parse(localStorage.getItem("oreolive_monitor")); } catch {}
+    if (key && (key === DEMO_TEACHER_KEY || (mon && mon.key === key))) return "teacher";
+    err(se.obsPass ? "パスワードが正しくありません" : "参観者用のパスワードがまだ決まっていません。授業の先生に確認してください", 401);
+  }
 
   const demo = {
     async state(s, cls, num) {
@@ -141,8 +178,10 @@
         const st = `${cls}-${parseInt(num, 10)}`;
         const v = db.votes.find((x) => x.session === se.code && x.student === st);
         const w = (r) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === r);
-        const stamps = {};
-        db.stamps.filter((x) => x.session === se.code && x.student === st).forEach((x) => (stamps[x.stamp] = (stamps[x.stamp] || 0) + 1));
+        const stamps = db.stamps
+          .filter((x) => x.session === se.code && x.student === st)
+          .sort((a, b) => (a.at || 0) - (b.at || 0))
+          .map((x) => ({ stamp: x.stamp, name: x.name || "", at: x.at || 0 }));
         out.mine = { vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")), stamps };
       }
       return out;
@@ -171,28 +210,51 @@
       const st = `${p.cls}-${parseInt(p.num, 10)}`;
       if (db.writings.some((x) => x.session === se.code && x.student === st && x.round === round)) err("この英文はもう提出しています", 409);
       const at = Date.now();
-      db.writings.push({ id: ++db.seq, session: se.code, student: st, grp: String(p.grp || ""), round, stance: p.stance, body, words: w, translation: DEMO_TR, flag: "ok", correction: null, at, upd: at });
+      const id = ++db.seq;
+      db.writings.push({ id, session: se.code, student: st, grp: String(p.grp || ""), round, stance: p.stance, body, words: w, translation: DEMO_TR, flag: "ok", feedback: null, reflection: null, at, upd: at });
       save(db);
+      // 本番と同じく、コメント・問いかけ・添削は少し後に届く
+      setTimeout(() => {
+        const d = load();
+        const x = d.writings.find((y) => y.id === id);
+        if (!x || x.feedback) return;
+        x.feedback = demoFeedback(x, topicOf(d.sessions[x.session] || {}), round === "post" ? preOf(d, { code: x.session }, st) : null);
+        x.upd = Date.now();
+        save(d);
+      }, 3000);
       return { ok: true, round, stance: p.stance, words: w, at };
     },
-    async correct(p) {
-      await wait(2500);
+    async feedback(p) {
+      await wait(1500);
       const db = load();
       const se = sess(db, p.s);
       const st = `${p.cls}-${parseInt(p.num, 10)}`;
       const w = db.writings.find((x) => x.session === se.code && x.student === st && x.round === p.round);
       if (!w) err("まだ英文を提出していません", 404);
-      if (w.correction) return { correction: w.correction, already: true };
-      w.correction = demoCorrection(w.body, topicOf(se));
+      if (w.feedback) return { feedback: w.feedback, already: true };
+      w.feedback = demoFeedback(w, topicOf(se), p.round === "post" ? preOf(db, se, st) : null);
       w.upd = Date.now();
       save(db);
-      return { correction: w.correction };
+      return { feedback: w.feedback };
+    },
+    async reflect(p) {
+      await wait(200);
+      const db = load();
+      const se = sess(db, p.s);
+      const st = `${p.cls}-${parseInt(p.num, 10)}`;
+      const w = db.writings.find((x) => x.session === se.code && x.student === st && x.round === "post");
+      if (!w) err("英文を提出してから、振り返りを書きましょう", 404);
+      const text = cleanBody(p.text).slice(0, 1500);
+      w.reflection = text || null;
+      w.upd = Date.now();
+      save(db);
+      return { ok: true, reflection: text, at: w.upd };
     },
     async live(s, key, since, observer) {
       await wait(80);
       const db = load();
       const se = sess(db, s);
-      const role = key === DEMO_OBSERVER_KEY ? "observer" : "teacher";
+      const role = demoRole(se, key);
       const stamps = {};
       const myStamps = [];
       for (const r of db.stamps.filter((x) => x.session === se.code)) {
@@ -205,19 +267,26 @@
         phase: se.phase,
         topic: topicOf(se),
         votes: db.votes.filter((x) => x.session === se.code),
-        writings: db.writings.filter((x) => x.session === se.code && x.upd >= (since || 0)).map((w) => strip(w, role)),
+        writings: db.writings.filter((x) => x.session === se.code && x.upd >= (since || 0)).map(strip),
         stamps,
         myStamps,
         summary: se.summary || null,
         serverTime: Date.now(),
       };
     },
-    async stamp(s, key, student, stamp, observer, on) {
+    async stamp(s, key, student, stamp, observer, on, name) {
       const db = load();
       const se = sess(db, s);
+      demoRole(se, key);
       if (!observer) err("参観者の情報がありません。ページを開き直してください");
-      db.stamps = db.stamps.filter((x) => !(x.session === se.code && x.student === student && x.observer === observer && x.stamp === stamp));
-      if (on) db.stamps.push({ session: se.code, student, observer, stamp });
+      const nm = cleanName(name);
+      if (on && !nm) err("お名前を入力してください（生徒には「〇〇先生から」と届きます）");
+      const had = db.stamps.find((x) => x.session === se.code && x.student === student && x.observer === observer && x.stamp === stamp);
+      db.stamps = db.stamps.filter((x) => x !== had);
+      if (on) {
+        db.stamps.push({ session: se.code, student, observer, stamp, name: nm, at: had ? had.at : Date.now() });
+        db.stamps.forEach((x) => { if (x.session === se.code && x.observer === observer) x.name = nm; });
+      }
       save(db);
       return { ok: true };
     },
@@ -225,9 +294,19 @@
       const db = load();
       const c = code(s);
       if (!/^[A-Z0-9_-]{1,20}$/.test(c)) err("セッションコードが正しくありません");
-      db.sessions[c] = db.sessions[c] || { code: c, phase: "vote", topic: C.DEFAULT_TOPIC, summary: null };
+      db.sessions[c] = db.sessions[c] || { code: c, phase: "vote", topic: C.DEFAULT_TOPIC, summary: null, obsPass: DEMO_OBSERVER_KEY };
       save(db);
       return { code: c, phase: db.sessions[c].phase, topic: topicOf(db.sessions[c]) };
+    },
+    async password(s, key, password) {
+      const db = load();
+      const se = sess(db, s);
+      const pw = String(password ?? "").trim();
+      if (pw.length < 4 || pw.length > 40) err("パスワードは4〜40文字にしてください");
+      if (pw === DEMO_TEACHER_KEY) err("教員キーと同じパスワードは使えません");
+      se.obsPass = pw;
+      save(db);
+      return { code: se.code, observerPassword: pw };
     },
     async topic(s, key, topic) {
       const db = load();
@@ -287,21 +366,28 @@
       save(db);
       return { ok: true };
     },
-    async info() {
-      return { observerKey: DEMO_OBSERVER_KEY, model: "（デモモード：AIは使っていません）" };
+    async info(s) {
+      const db = load();
+      const se = s ? db.sessions[code(s)] : null;
+      return { observerPassword: (se && se.obsPass) || "", model: "（デモモード：AIは使っていません）" };
     },
     async exportCsv(s) {
       const db = load();
       const se = sess(db, s);
       const people = new Map();
-      const get = (id) => people.get(id) || people.set(id, { student: id, grp: "", vote: "", pre: null, post: null, stamps: 0 }).get(id);
+      const get = (id) => people.get(id) || people.set(id, { student: id, grp: "", vote: "", pre: null, post: null, stamps: 0, from: new Set() }).get(id);
       db.votes.filter((x) => x.session === se.code).forEach((v) => Object.assign(get(v.student), { vote: v.stance, grp: v.grp }));
       db.writings.filter((x) => x.session === se.code).forEach((w) => { get(w.student)[w.round] = w; if (w.grp) get(w.student).grp = w.grp; });
-      db.stamps.filter((x) => x.session === se.code).forEach((x) => (get(x.student).stamps += 1));
+      db.stamps.filter((x) => x.session === se.code).forEach((x) => { get(x.student).stamps += 1; if (x.name) get(x.student).from.add(x.name + "先生"); });
       const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-      const part = (w) => (w ? [w.stance, w.words, w.body, (w.correction || {}).corrected || "", w.translation || "", w.flag || ""] : ["", "", "", "", "", ""]);
-      const head = ["組-番号", "グループ", "読む前の立場", "読む前の語数", "読む前の英文", "読む前の添削後", "読む前の和訳(AI)", "読む前のフラグ", "最初の考え(投票)", "授業後の立場", "授業後の語数", "授業後の英文", "授業後の添削後", "授業後の和訳(AI)", "授業後のフラグ", "スタンプ(合計)"];
-      const rows = [...people.values()].map((x) => [x.student, x.grp, ...part(x.pre), x.vote, ...part(x.post), x.stamps].map(esc).join(","));
+      const part = (w) => {
+        if (!w) return Array(8).fill("");
+        const f = w.feedback || {};
+        return [w.stance, w.words, w.body, f.comment || "", (f.questions || []).map((q) => `${q.en}（${q.ja}）`).join(" / "), f.corrected || "", w.translation || "", w.flag || ""];
+      };
+      const cols = (p) => [`${p}の立場`, `${p}の語数`, `${p}の英文`, `${p}のAIコメント`, `${p}のAIの問いかけ`, `${p}の添削後`, `${p}の和訳(AI)`, `${p}のフラグ`];
+      const head = ["組-番号", "グループ", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り", "スタンプ(合計)", "スタンプを送った先生"];
+      const rows = [...people.values()].map((x) => [x.student, x.grp, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || "", x.stamps, [...x.from].join("、")].map(esc).join(","));
       return new Blob(["﻿" + [head.map(esc).join(","), ...rows].join("\r\n")], { type: "text/csv" });
     },
     // モニターの見た目確認用：28人分のサンプル（本番のトピックは読む前と後、練習は1回だけ）を投入
@@ -316,26 +402,37 @@
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
       db.stamps = db.stamps.filter((x) => x.session !== se.code);
-      const add = (w) => db.writings.push(Object.assign({ id: ++db.seq, session: se.code, flag: "ok", correction: null }, w, { words: words(w.body), upd: w.at }));
+      const topic = topicOf(se);
+      const add = (w) => {
+        const x = Object.assign({ id: ++db.seq, session: se.code, flag: "ok", feedback: null, reflection: null }, w, { words: words(w.body), upd: w.at });
+        db.writings.push(x);
+        return x;
+      };
+      const REFL = konbini ? DEMO_REFLECTIONS.konbini : DEMO_REFLECTIONS.refugees;
       for (const cls of ["4", "5", "6"]) {
         for (let num = 1; num <= 10 && n < 28; num++, n++) {
           const student = `${cls}-${num}`;
           const grp = String((n % 8) + 1);
           const first = stances[(n * 7) % 3];
+          let pre = null;
           if (!konbini) {
             // 読む前は Not sure が多め
-            const pre = n % 5 < 2 ? "unsure" : stances[(n * 7 + 1) % 3];
-            const t = S.pre[pre][n % S.pre[pre].length];
-            add({ student, grp, round: "pre", stance: pre, body: t[0], translation: t[1], at: base - 20 * 86400000 + n * 30000, correction: n % 3 === 0 ? demoCorrection(t[0], "refugees") : null });
+            const ps = n % 5 < 2 ? "unsure" : stances[(n * 7 + 1) % 3];
+            const t = S.pre[ps][n % S.pre[ps].length];
+            pre = add({ student, grp, round: "pre", stance: ps, body: t[0], translation: t[1], at: base - 20 * 86400000 + n * 30000 });
+            pre.feedback = demoFeedback(pre, topic, null);
           }
           db.votes.push({ session: se.code, student, grp, stance: first });
           if (n >= 26) continue; // 2人はまだ書いていない
           const stance = n % 10 === 3 ? (first === "yes" ? "no" : "yes") : first === "unsure" ? (n % 2 ? "yes" : "no") : first;
           const t = S.post[stance][n % 4];
-          add({ student, grp, round: "post", stance, body: t[0], translation: t[1], at: base + 30 * 60000 + n * 20000, correction: n % 4 === 1 ? demoCorrection(t[0], topicOf(se)) : null });
-          if (n % 3 === 0) db.stamps.push({ session: se.code, student, observer: "demo-1", stamp: "nice" });
-          if (n % 4 === 0) db.stamps.push({ session: se.code, student, observer: "demo-2", stamp: "grow" });
-          if (n % 5 === 0) db.stamps.push({ session: se.code, student, observer: "demo-3", stamp: "text" });
+          const post = add({ student, grp, round: "post", stance, body: t[0], translation: t[1], at: base + 30 * 60000 + n * 20000 });
+          if (n !== 25) post.feedback = demoFeedback(post, topic, pre); // 1人はコメントがまだ届いていない
+          if (n % 3 !== 2) post.reflection = REFL[n % REFL.length];
+          const at = base + 45 * 60000 + n * 15000;
+          if (n % 3 === 0) db.stamps.push({ session: se.code, student, observer: "demo-1", stamp: "nice", name: "田中", at });
+          if (n % 4 === 0) db.stamps.push({ session: se.code, student, observer: "demo-2", stamp: "grow", name: "佐藤", at: at + 1000 });
+          if (n % 5 === 0) db.stamps.push({ session: se.code, student, observer: "demo-3", stamp: "text", name: "鈴木", at: at + 2000 });
         }
       }
       save(db);
@@ -396,6 +493,21 @@
       },
     },
   };
+  // デモの振り返り（日本語）
+  const DEMO_REFLECTIONS = {
+    refugees: [
+      "読む前は「かわいそうだから助けたい」としか書けなかった。今日は187人という数字を使って、日本の受け入れが少ないことを理由にできた。",
+      "立場は No のままだけど、理由が「なんとなく不安」から「支援の仕組みが足りない」に変わった。不安の正体がわかった気がする。",
+      "Not sure から Yes になった。緒方さんの「人の命を第一に」という言葉が心に残った。英語も前の倍くらい書けた。",
+      "ディベートで相手に「お金はどうするの？」と言われて、答えられなかった。AI の問いかけも同じことを聞いていたので、もっと調べたい。",
+      "前は日本語が混ざっていたけど、今日は全部英語で書けた。labor shortage という表現を使えたのがうれしい。",
+    ],
+    konbini: [
+      "最初は便利だから続けるべきだと思っていたが、店員さんの立場で考えると、夜は大変だとわかった。",
+      "立場は変わらなかったけど、災害のときに役立つという理由がはっきりした。",
+      "相手の「電気がもったいない」という意見になるほどと思った。英語で理由を2つ書けた。",
+    ],
+  };
   // デモのまとめ（[全体の傾向, 主な考え1, 2, 3]）
   const DEMO_SUMMARY = {
     refugees: {
@@ -421,5 +533,5 @@
     },
   };
 
-  window.OREO_API = Object.assign({ demo: DEMO, demoObserverKey: DEMO_OBSERVER_KEY }, DEMO ? demo : remote);
+  window.OREO_API = Object.assign({ demo: DEMO, demoObserverKey: DEMO_OBSERVER_KEY, demoTeacherKey: DEMO_TEACHER_KEY }, DEMO ? demo : remote);
 })();
