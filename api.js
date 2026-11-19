@@ -456,6 +456,7 @@
           if (n % 3 !== 2) post.reflection = REFL[n % REFL.length];
         }
       }
+      se.phase = "lesson"; // サンプルは授業の後までのデータなので、研究授業の部を開いた状態にする
       save(db);
     },
   };
