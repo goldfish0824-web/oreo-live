@@ -164,3 +164,20 @@ input[type="checkbox"] { accent-color: var(--cookie); }
 @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 main > section:not(.hidden), .pane:not(.hidden) { animation: riseIn 0.32s ease both; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* 座席表（ディベートのチーム分け。モニターと生徒画面で共通）。2列ごとに通路をあける */
+.seat-front { text-align: center; font-size: 13px; font-weight: 700; color: var(--ink-3); background: var(--surface-2); border-radius: 10px; padding: 4px; margin-bottom: 10px; }
+.seatgrid { display: grid; gap: 8px; --seat-h: 56px; }
+.seat { position: relative; min-height: var(--seat-h); min-width: 0; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; line-height: 1.15; font-weight: 700; color: var(--ink-3); transition: transform 0.1s, box-shadow 0.15s; }
+.seat:active { transform: scale(0.97); }
+.seat b { font-family: var(--font-en); font-size: 1.3em; font-weight: 900; }
+.seat small { font-size: 0.78em; font-weight: 800; font-family: var(--font-en); }
+.seat.yes { background: var(--yes); border-color: var(--yes); color: #fff; }
+.seat.no { background: var(--no); border-color: var(--no); color: #fff; }
+.seat.absent { background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 6px, var(--surface) 6px, var(--surface) 12px); border-style: dashed; font-size: 0.8em; }
+.seat.gap { background: transparent; border-style: dashed; border-color: #d9d4c6; }
+.seat.used { background: var(--accent-soft); border-color: #c9cede; color: var(--ink); }
+.seat.sel { box-shadow: 0 0 0 4px var(--pop); transform: translateY(-2px); z-index: 1; }
+.seat.me { box-shadow: 0 0 0 4px var(--pop), var(--shadow-lg); transform: translateY(-2px); z-index: 1; }
+.seat.taken:not(.me) { opacity: 0.55; }
+.seat .ck { position: absolute; top: 2px; right: 6px; font-size: 0.7em; }

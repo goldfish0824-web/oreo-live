@@ -55,6 +55,27 @@
   .empty { text-align: center; color: var(--ink-3); padding: 50px 0; }
   .login { max-width: 460px; margin: 60px auto; padding: 28px; box-shadow: var(--shadow-lg); }
   .teacher-flag { background: var(--fix); color: #fff; font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
+  .badge.team-yes { background: var(--yes-soft); color: var(--yes-ink); }
+  .badge.team-no { background: var(--no-soft); color: var(--no-ink); }
+  /* 先生からのスタンプ（押すと生徒の画面に「先生から」として届く。もう一度押すと取り消し） */
+  .stamps { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .stamps .lbl { font-size: 13px; color: var(--ink-3); font-weight: 700; margin-right: 2px; }
+  .stp { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 13px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font: inherit; font-weight: 800; font-size: 14px; color: var(--ink-2); cursor: pointer; transition: transform 0.1s, background 0.15s; }
+  .stp:active { transform: scale(0.96); }
+  .stp .ic { font-size: 18px; }
+  .stp b { font-family: var(--font-en); color: var(--ink-3); min-width: 1ch; }
+  .stp.on { background: var(--pop-soft); border-color: var(--pop); color: var(--ink); }
+  .stp.on b { color: var(--ink); }
+  .stp:disabled { opacity: 0.6; }
+  .stamps .none { font-size: 12.5px; color: var(--fix); font-weight: 700; }
+  @media (max-width: 520px) {
+    .filters { gap: 6px; }
+    .filters .seg button { padding: 5px 10px; font-size: 13px; }
+    .stamps { gap: 6px; }
+    .stamps .lbl { width: 100%; }
+    .stp { min-height: 36px; padding: 4px 10px; font-size: 13px; gap: 4px; }
+    .stp .ic { font-size: 16px; }
+  }
 </style>
 </head>
 <body>
@@ -80,7 +101,7 @@
         <button data-f="all" class="on">すべて</button><button data-f="yes">Yes</button><button data-f="no">No</button>
       </div>
       <div class="seg" id="fSort">
-        <button data-s="new" class="on">新しい順</button><button data-s="grp">グループ順</button>
+        <button data-s="new" class="on">新しい順</button><button data-s="grp">グループ順</button><button data-s="stamp">スタンプが少ない順</button>
       </div>
       <div class="seg" id="fTr">
         <button data-tr="on" class="on">和訳あり</button><button data-tr="off">英語のみ</button>
@@ -96,6 +117,7 @@
         <li>書いた量や、英語の表現がどう変わったか。</li>
       </ol>
       <p class="small muted" style="margin:4px 0 0">英文の下の日本語は、AI による参考訳です。生徒の英語の誤りは直さずに訳しています（生徒の画面には出ません）。上の「英語のみ」で消せます。「AI のコメント・問いかけ・添削を見る」を押すと、生徒の画面に届いた AI のコメントと問いかけ、添削後の英文が読めます。</p>
+      <p class="small muted" style="margin:4px 0 0">各英文の下のスタンプ（<span id="gStamps"></span>）を押すと、生徒の画面に「先生から」として届きます（どの先生が押したかは出ません）。何人の生徒にでも押せます。もう一度押すと取り消せます。まだスタンプのない生徒にも届くよう、上の「スタンプが少ない順」で並べ替えられます。</p>
       <p class="small muted" style="margin:4px 0 0">このページのパスワードは、校外の方にお伝えにならないようお願いします。</p>
     </details>
     <div class="note hidden" id="teacherNote" style="margin-bottom:16px;background:var(--fix-soft);border:1px solid #f0c6c1;border-radius:14px;padding:11px 15px;font-size:14px">
@@ -140,7 +162,22 @@
     if (pw.s && pw.key && (!S.s || pw.s === S.s)) { S.key = pw.key; S.s = S.s || pw.s; }
     if (API.demo && !S.key && S.s) S.key = API.demoObserverKey;
   }
-  const D = { since: 0, writings: new Map(), votes: [], loaded: false };
+  const D = { since: 0, writings: new Map(), votes: [], members: [], stamps: {}, loaded: false };
+  // この端末の印（スタンプを、だれが押したか見分けるため。名前は使わない）。保存できないブラウザでは、開いている間だけ
+  const DEV = (() => {
+    let id = store.get("oreolive_dev");
+    if (typeof id !== "string" || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+      const a = new Uint8Array(12);
+      crypto.getRandomValues(a);
+      id = "d" + Array.from(a, (x) => x.toString(16).padStart(2, "0")).join("");
+      store.set("oreolive_dev", id);
+    }
+    return id;
+  })();
+  const STAMPS = C.STAMPS || [];
+  $("#gStamps").textContent = STAMPS.map((x) => `${x.icon} ${x.ja}`).join("　");
+  const stampLock = {}; // 押した直後の生徒は、古いポーリングの答えで上書きしない
+  let lastStampAt = 0, lastOrder = [];
   let T = window.OREO_TOPIC();
   let filter = "all", sort = "new", pollTimer = null;
   const openAi = new Set();
@@ -180,11 +217,20 @@
   }
 
   async function poll(throwErr) {
+    const t0 = Date.now();
     try {
-      const res = await API.live(S.s, S.key, D.since);
+      const res = await API.live(S.s, S.key, D.since, DEV);
       S.role = res.role || "observer";
       T = window.OREO_TOPIC(res.topic);
       D.votes = res.votes || [];
+      D.members = res.members || [];
+      const got = res.stamps || {};
+      const next = {};
+      for (const st of new Set([...Object.keys(got), ...Object.keys(D.stamps)])) {
+        const v = (stampLock[st] || 0) > t0 ? D.stamps[st] : got[st];
+        if (v) next[st] = v;
+      }
+      D.stamps = next;
       // 和訳・AI のコメント・振り返りが後から付くと upd が進むので、同じ id は上書きする
       (res.writings || []).forEach((w) => { D.writings.set(w.id, w); D.since = Math.max(D.since, w.upd || 0); });
       D.loaded = true;
@@ -197,7 +243,8 @@
   }
 
   $("#fStance").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; filter = b.dataset.f; $$("#fStance button").forEach((x) => x.classList.toggle("on", x === b)); render(); };
-  $("#fSort").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; sort = b.dataset.s; $$("#fSort button").forEach((x) => x.classList.toggle("on", x === b)); render(); };
+  // 並べ替えのボタンを押したときは、すぐに並べ直す（「スタンプがまだの人から」を押し直すと、最新の数で並べ直す）
+  $("#fSort").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; sort = b.dataset.s; lastStampAt = 0; $$("#fSort button").forEach((x) => x.classList.toggle("on", x === b)); render(); };
   // 和訳の表示（参観者ごとに覚えておく）
   function setTr(on) {
     document.body.classList.toggle("no-tr", !on);
@@ -207,17 +254,22 @@
   setTr(store.get("oreolive_observer_tr") !== false);
   $("#fTr").onclick = (e) => { const b = e.target.closest("button"); if (b) setTr(b.dataset.tr === "on"); };
 
-  // 生徒ごとに、読む前（pre）と授業の後（post）をまとめる
+  // 生徒ごとに、読む前（pre）と授業の後（post）をまとめる。班と立場は、ディベートで選んだ席から
   function students() {
     const m = new Map();
+    const team = Object.fromEntries(D.members.filter((x) => x.grp).map((x) => [x.student, x]));
     for (const w of D.writings.values()) {
-      if (!m.has(w.student)) m.set(w.student, { student: w.student, grp: "", pre: null, post: null });
+      if (!m.has(w.student)) m.set(w.student, { student: w.student, grp: "", side: "", pre: null, post: null });
       const x = m.get(w.student);
       x[w.round] = w;
-      if (w.grp) x.grp = w.grp;
+      if (w.grp && !x.grp) x.grp = w.grp;
     }
+    for (const x of m.values()) if (team[x.student]) { x.grp = team[x.student].grp; x.side = team[x.student].side; }
     return [...m.values()];
   }
+  const stampsOf = (st) => D.stamps[st] || { counts: {}, mine: [] };
+  const stampSum = (st) => Object.values(stampsOf(st).counts || {}).reduce((a, n) => a + (n || 0), 0);
+  const byStudent = (a, b) => a.student.localeCompare(b.student, "ja", { numeric: true });
 
   function render() {
     const teacher = S.role === "teacher";
@@ -235,7 +287,17 @@
     const now = (x) => x.post || x.pre;
     if (filter === "yes" || filter === "no") items = items.filter((x) => now(x).stance === filter);
     const last = (x) => Math.max(x.pre ? x.pre.at : 0, x.post ? x.post.at : 0);
-    items.sort(sort === "new" ? (a, b) => last(b) - last(a) : (a, b) => (+a.grp || 99) - (+b.grp || 99) || a.student.localeCompare(b.student, "ja", { numeric: true }));
+    items.sort(
+      sort === "new" ? (a, b) => last(b) - last(a)
+      : sort === "stamp" ? (a, b) => stampSum(a.student) - stampSum(b.student) || byStudent(a, b)
+      : (a, b) => (+a.grp || 99) - (+b.grp || 99) || byStudent(a, b)
+    );
+    // スタンプを押している間（最後に押してから20秒）は、並び順を変えない（押した生徒のカードが動いて、押しまちがえないように）
+    if (sort === "stamp" && Date.now() - lastStampAt < 20000 && lastOrder.length) {
+      const pos = new Map(lastOrder.map((st, i) => [st, i]));
+      items.sort((a, b) => (pos.has(a.student) ? pos.get(a.student) : 1e6) - (pos.has(b.student) ? pos.get(b.student) : 1e6));
+    }
+    lastOrder = items.map((x) => x.student);
     // 開いている「AI のコメント・問いかけ・添削」の状態を保ったまま描き直す
     $$("details.ai").forEach((d) => (d.open ? openAi.add(d.dataset.id) : openAi.delete(d.dataset.id)));
     $("#list").innerHTML = items.length
@@ -279,14 +341,60 @@
     const showPre = T.PRE_WRITING || x.pre;
     const growth = both ? (() => { const d = (x.post.words || 0) - (x.pre.words || 0); return d ? `<span class="growth">${x.pre.words} → ${x.post.words} words（${d > 0 ? "+" : "−"}${Math.abs(d)}）</span>` : ""; })() : "";
     const refl = x.post && x.post.reflection ? `<div class="refl"><b>📝 振り返り（生徒が日本語で書いたもの）</b><p>${esc(x.post.reflection)}</p></div>` : "";
+    // ディベートの班と立場（ディベートで担当した立場。英文の立場と違うこともある）
+    const team = x.side
+      ? `<span class="badge team-${x.side}" title="ディベートで担当した班と立場">G${esc(x.grp)}・${x.side === "yes" ? "Yes" : "No"}側</span>`
+      : x.grp ? `<span class="badge">G${esc(x.grp)}</span>` : "";
     return `<article class="card stu ${esc(now.stance)}">
-      <div class="meta"><span class="who">${x.grp ? "G" + esc(x.grp) + " · " : ""}${esc(x.student.replace("-", "組"))}番</span>${growth}</div>
+      <div class="meta"><span class="who">${esc(x.student.replace("-", "組"))}番</span>${team}${growth}</div>
       <div class="cols ${showPre ? "two" : ""}">
         ${showPre ? column(x.pre, "pre", both) : ""}
         ${column(x.post, "post", both)}
       </div>
       ${refl}
+      <div class="stamps" data-stamps="${esc(x.student)}">${stampBar(x.student)}</div>
     </article>`;
+  }
+
+  /* ---------- 先生からのスタンプ ---------- */
+  function stampBar(st) {
+    const s = stampsOf(st);
+    const mine = new Set(s.mine || []);
+    return `<span class="lbl">スタンプ</span>`
+      + STAMPS.map((k) => {
+        const n = (s.counts || {})[k.id] || 0;
+        return `<button type="button" class="stp ${mine.has(k.id) ? "on" : ""}" data-student="${esc(st)}" data-stamp="${k.id}" aria-pressed="${mine.has(k.id)}" title="${mine.has(k.id) ? "もう一度押すと取り消します" : "押すと生徒に届きます"}"><span class="ic">${k.icon}</span>${esc(k.ja)}<b>${n || ""}</b></button>`;
+      }).join("")
+      + (stampSum(st) ? "" : `<span class="none">まだスタンプがありません</span>`);
+  }
+  $("#list").addEventListener("click", async (e) => {
+    const b = e.target.closest(".stp");
+    if (!b || b.disabled) return;
+    const st = b.dataset.student, k = b.dataset.stamp;
+    const cur = stampsOf(st);
+    const on = !(cur.mine || []).includes(k);
+    // 先に画面を変えてから送る（届かなかったときは元に戻す）
+    const before = D.stamps[st];
+    const counts = Object.assign({}, cur.counts);
+    counts[k] = Math.max(0, (counts[k] || 0) + (on ? 1 : -1));
+    D.stamps[st] = { counts, mine: on ? [...(cur.mine || []), k] : (cur.mine || []).filter((x) => x !== k) };
+    stampLock[st] = Date.now() + 60000;
+    lastStampAt = Date.now();
+    redrawStamps(st);
+    try {
+      const res = await API.stamp(S.s, S.key, { student: st, stamp: k, on, dev: DEV });
+      D.stamps[st] = { counts: res.counts, mine: res.mine };
+      if (on) toast(`${STAMPS.find((x) => x.id === k).icon} ${st.replace("-", "組")}番に届けました`);
+    } catch (err) {
+      if (before) D.stamps[st] = before; else delete D.stamps[st];
+      toast(err.message, true);
+    } finally {
+      stampLock[st] = Date.now();
+      redrawStamps(st);
+    }
+  });
+  function redrawStamps(st) {
+    $$(`[data-stamps]`).forEach((el) => { if (el.dataset.stamps === st) el.innerHTML = stampBar(st); });
   }
 
 })();

@@ -21,7 +21,7 @@
   .topic-ja { color: var(--ink-2); margin: 6px 0 0; font-size: 15px; }
   .stack > * + * { margin-top: 14px; }
   #btnStart { width: 100%; min-height: 54px; font-size: 17px; }
-  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
   /* 投票 */
   .vote-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
@@ -45,6 +45,29 @@
   .debate-hints:empty { display: none; }
   .debate-hints li { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 7px 12px; font-size: 14px; color: rgba(251,247,238,0.75); }
   .debate-hints b { display: block; font-family: var(--font-en); font-size: 15.5px; color: var(--cream); }
+  #v-wait .wait-hero { padding: 32px 18px; }
+  .hero-h { max-width: 520px; margin: 22px auto 0; text-align: left; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; color: var(--pop); }
+  .debate-flow { list-style: none; text-align: left; max-width: 520px; margin: 8px auto 0; padding: 0; display: grid; gap: 4px; font-size: 14.5px; color: rgba(251,247,238,0.88); }
+  .debate-flow li span { margin-left: 8px; font-size: 12.5px; color: rgba(251,247,238,0.55); }
+  .debate-flow.vp li { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 6px 12px; }
+  .debate-flow.vp b { font-family: var(--font-en); color: var(--cream); margin-right: 8px; }
+  .debate-hints { margin-top: 8px; }
+  /* チーム（座席表） */
+  .team-card h2 { margin: 0; }
+  .team-you { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); }
+  .team-you .tag { font-family: var(--font-en); font-weight: 900; font-size: 24px; padding: 4px 14px; border-radius: 12px; color: #fff; white-space: nowrap; }
+  .team-you .tag.yes { background: var(--yes); }
+  .team-you .tag.no { background: var(--no); }
+  .team-you p { margin: 0; flex: 1 1 220px; font-size: 14.5px; }
+  .team-you p small { display: block; color: var(--ink-3); margin-top: 2px; }
+  #seatGrid .seatgrid { --seat-h: 46px; gap: 6px; }
+  #seatGrid .seat.absent { opacity: 0.5; }
+  /* 先生からのスタンプ */
+  .stamp-card h2 { margin: 0 0 10px; }
+  .stamp-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stamp-row .stamp { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--surface-2); font-weight: 800; }
+  .stamp-row .stamp .ic { font-size: 22px; }
+  .stamp-row .stamp b { font-family: var(--font-en); color: var(--ink-3); }
 
   /* 次へ進むボタン（生徒が自分で順番に進む） */
   .next-btn { width: 100%; min-height: 56px; font-size: 17px; }
@@ -163,10 +186,9 @@
         <label class="field-label" for="inCode">セッションコード（モニターに表示）</label>
         <input id="inCode" type="text" inputmode="latin" autocomplete="off" placeholder="例：1210">
       </div>
-      <div class="grid3">
+      <div class="grid2">
         <div><label class="field-label" for="inId">番号（4けた）</label><input id="inId" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="例：2401"></div>
         <div><label class="field-label" for="inName">名字（ひらがな）</label><input id="inName" type="text" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例：やまだ"></div>
-        <div><label class="field-label" for="inGrp">グループ</label><select id="inGrp"></select></div>
       </div>
       <p class="small muted" id="idHint">4けたの番号は「学年・組・番号」です（例：2年4組1番 → 2401）。最初に入れた名字が、あなたのパスワードになります。次からも同じ名字で入ってください。名字そのものは保存されず、画面にも、先生や AI にも見えません。</p>
       <button id="btnStart" class="btn btn-primary">はじめる</button>
@@ -192,9 +214,27 @@
   <!-- ディベート -->
   <section id="v-wait" class="stack hidden">
     <p class="step">Step 2：ミニ・ディベート</p>
+    <!-- チーム：先生がモニターでチームを分けたら、自分の席をタップする -->
+    <div class="card stack team-card">
+      <h2 id="teamTitle">あなたのチーム</h2>
+      <p class="muted" id="teamWait" style="margin:0">先生がチームを分けるまで、少し待とう。分かれたら、ここに座席表が出ます。</p>
+      <div id="teamBox" class="stack hidden">
+        <div class="team-you hidden" id="teamYou"></div>
+        <p class="small muted" id="seatHint" style="margin:0"></p>
+        <div>
+          <div class="seat-front">黒板（前）</div>
+          <div id="seatGrid"></div>
+        </div>
+      </div>
+    </div>
     <div class="card wait-hero">
       <div class="big">Debate time!</div>
-      <p>タブレットを置いて、ディベートに集中しよう。</p>
+      <p>座席表で班を確かめたら、タブレットを置いてディベートに集中しよう。</p>
+      <h3 class="hero-h">進め方（10分）</h3>
+      <ol class="debate-flow" id="debateFlow"></ol>
+      <h3 class="hero-h">立論メモの3つの視点</h3>
+      <ol class="debate-flow vp" id="debateVp"></ol>
+      <h3 class="hero-h">使える言い方</h3>
       <ul class="debate-hints" id="debateHints"></ul>
     </div>
     <button id="btnToWrite" class="btn btn-primary next-btn">ディベートが終わったら：英文を書く →</button>
@@ -236,6 +276,11 @@
   <section id="v-done" class="stack hidden">
     <div class="done-head"><h2>提出しました！</h2><span class="badge" id="doneRound"></span></div>
     <p class="muted" id="doneLead" style="margin:0"></p>
+    <!-- 先生からのスタンプ（だれが押したかは出さない） -->
+    <div class="card stamp-card hidden" id="stampCard">
+      <h2>🎁 先生からのスタンプ</h2>
+      <div class="stamp-row" id="stampRow"></div>
+    </div>
     <div data-writings></div>
     <!-- 読む前の英文を出した後：研究授業の部が開くまで、ここで止まる -->
     <div class="card wait-hero hidden" id="stopCard">
@@ -285,7 +330,9 @@
   const params = new URLSearchParams(location.search);
   // show = 英文の表示（orig：自分の英文／diff：直したところ／fixed：添削後）。最初は自分の英文を見せ、コメントと問いかけを先に読ませる
   // lesson = 研究授業の部が開いているか（先生がモニターで1回だけ開く。練習のトピックは最初から開いている）
-  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", grp: "", token: "", phase: null, lesson: false, mine: null, view: "", topic: "", round: "", doneRound: "", stance: "", show: "orig", openFix: {}, fbSig: "" };
+  // teams = 先生が分けたディベートのチーム（座席表と、席ごとの班と立場）。mine.team = 自分が選んだ席の班と立場
+  const st = { s: (params.get("s") || "").trim().toUpperCase(), cls: "", num: "", token: "", phase: null, lesson: false, mine: null, teams: null, view: "", topic: "", round: "", doneRound: "", stance: "", show: "orig", openFix: {}, fbSig: "", teamSig: "", stampSig: "" };
+  const SEAT = window.OREO_SEAT;
   const sid = () => `${st.s}_${st.cls}-${st.num}`;
   const draftKey = (round) => `oreolive_draft2_${sid()}_${round}`;
   const reflectKey = () => `oreolive_reflect_${sid()}`;
@@ -309,26 +356,27 @@
     const H = T.DEBATE_HINTS || {};
     $("#debateHints").innerHTML = [["Yes 側の立論", H.yes], ["No 側の立論", H.no], ["反論", H.rebut]]
       .filter(([, en]) => en).map(([ja, en]) => `<li>${esc(ja)}<b>${esc(en)}</b></li>`).join("");
+    // ディベートの進め方（モニターのタイマーと同じ順番）と、立論メモの3つの視点（資料2のメモの欄と同じ）
+    $("#debateFlow").innerHTML = C.DEBATE_PHASES.map((p) => `<li>${esc(p.label)}<span>${p.sec >= 60 ? Math.round(p.sec / 60) + "分" : p.sec + "秒"}</span></li>`).join("");
+    $("#debateVp").innerHTML = (T.VIEWPOINTS || []).map(([en, ja], k) => `<li><b>${k + 1}. ${esc(en)}</b>${esc(ja)}</li>`).join("");
+    $("#debateVp").previousElementSibling.classList.toggle("hidden", !(T.VIEWPOINTS || []).length);
     $("#exprTitle").textContent = T.EXPRESSIONS_TITLE;
     $("#exprGrid").innerHTML = T.EXPRESSIONS.map(([en, ja]) => `<span class="en">${esc(en)}</span><span class="muted">${esc(ja)}</span>`).join("");
     // 書きかけの文章は消さず、書き出しの候補と立場のボタンだけを入れ替える
     $("#chips").innerHTML = [...T.OPINION_CHIPS, ...C.WRITE_CHIPS].map((c) => `<button type="button" class="chip" data-text="${esc(c)}">${esc(c.trim())} …</button>`).join("");
     if (st.round) renderStanceButtons();
   }
-  $("#inGrp").innerHTML = `<option value="">—</option>` + Array.from({ length: C.GROUPS }, (_, i) => `<option value="${i + 1}">G${i + 1}</option>`).join("");
   const ID_EXAMPLE = `${C.GRADE ? C.GRADE + "年" : ""}${C.CLASSES[0]}組1番 → ${window.OREO_ID_OF(C.CLASSES[0], 1)}`;
   $("#inId").placeholder = "例：" + window.OREO_ID_OF(C.CLASSES[0], 1);
   $("#idHint").firstChild.textContent = $("#idHint").firstChild.textContent.replace(/（例：[^）]*）/, `（例：${ID_EXAMPLE}）`);
   applyTopic(C.DEFAULT_TOPIC);
 
-  // この端末に覚えておくのは、セッション・組・番号・グループと、ログインの印（token）だけ。名字は覚えない
+  // この端末に覚えておくのは、セッション・組・番号と、ログインの印（token）だけ。名字は覚えない
+  // （ディベートの班はログインでは選ばない。先生がモニターでチームを分け、生徒は Step 2 で自分の席をタップする）
   const saved = store.get("oreolive_login");
   if (saved) {
     if (!st.s && saved.s) st.s = saved.s;
-    if (saved.s === st.s && saved.cls) {
-      $("#inId").value = window.OREO_ID_OF(saved.cls, saved.num);
-      $("#inGrp").value = saved.grp || "";
-    }
+    if (saved.s === st.s && saved.cls) $("#inId").value = window.OREO_ID_OF(saved.cls, saved.num);
   }
   $("#inCode").value = st.s;
   if (params.get("s")) $("#codeRow").classList.add("hidden");
@@ -345,9 +393,13 @@
   }
   // 先生の画面とは連動しない。生徒が自分で順番に進む：
   //   本文を読む前の英文 →（続きは本文を学習した後で）→ 最初の考え → ディベート → 授業の後の英文 → 振り返り
+  function updateWho() {
+    const t = st.mine && st.mine.team;
+    $("#who").textContent = `${st.cls}組${st.num}番${t ? ` · G${t.grp}-${t.side === "yes" ? "Yes" : "No"}` : ""}`;
+  }
   function render() {
     if (!st.phase) return show("login");
-    $("#who").textContent = `${st.cls}組${st.num}番${st.grp ? " · G" + st.grp : ""}`;
+    updateWho();
     const mine = st.mine || {};
     if (mine.post) { renderDone("post"); return show("done"); }
     if (!st.lesson) {
@@ -358,7 +410,7 @@
     }
     const step = getStep();
     if (step === "write") { setupWrite("post"); return show("write"); }
-    if (step === "debate" && mine.vote) return show("wait");
+    if (step === "debate" && mine.vote) { renderTeam(); return show("wait"); }
     $$("#voteBtns button").forEach((b) => b.classList.toggle("on", mine.vote === b.dataset.v));
     $("#voteMsg").textContent = mine.vote ? "送信しました（選び直すこともできます）。ディベートが始まったら「次へ」を押そう。" : "";
     $("#btnToDebate").disabled = !mine.vote;
@@ -366,6 +418,73 @@
   }
   $("#btnToDebate").addEventListener("click", () => { setStep("debate"); render(); });
   $("#btnToWrite").addEventListener("click", () => { setStep("write"); render(); });
+
+  /* ---------- Step 2：ディベートのチーム（自分の席をタップ） ---------- */
+  const teamSig = () => JSON.stringify([st.teams && st.teams.at, st.mine && st.mine.team]);
+  function renderTeam() {
+    const t = st.teams, me = st.mine && st.mine.team;
+    st.teamSig = teamSig();
+    updateWho();
+    $("#teamWait").classList.toggle("hidden", !!t);
+    $("#teamBox").classList.toggle("hidden", !t);
+    $("#teamTitle").textContent = t && !me ? "自分の席をタップしよう" : "あなたのチーム";
+    if (!t) return;
+    if (me) {
+      const yes = me.side === "yes";
+      const side = yes ? "Yes" : "No";
+      const mates = Object.values(t.assign || {}).filter(([g, sd]) => String(g) === String(me.grp) && sd === me.side).length;
+      const [a, b] = yes ? ["A1", "A2"] : ["N1", "N2"];
+      const role = mates >= 2
+        ? `${side}側は2人。最初の立論メモは2人で書き、立論（${a}）と反論（${b}）を1人ずつ担当しよう。`
+        : `${side}側はあなた1人。立論（${a}）と反論（${b}）の両方を担当します。`;
+      $("#teamYou").innerHTML = `<span class="tag ${me.side}">G${esc(me.grp)}・${side}側</span>`
+        + `<p>${esc(role)}<small>「${esc(yes ? T.YES_JA : T.NO_JA)}」の立場で話します（あなたの本当の意見とちがってもOK）。</small></p>`;
+    }
+    $("#teamYou").classList.toggle("hidden", !me);
+    $("#seatHint").textContent = me ? "席がちがっていたら、自分の席をタップし直そう。" : "上が黒板（前）です。いま座っている席をタップしてください。";
+    $("#seatGrid").innerHTML = SEAT.html(t.rows, t.cols, (id) => {
+      if (!t.seats.includes(id)) return null;
+      const x = t.assign[id];
+      if (!x) return { cls: "absent", html: "" };
+      if (me && me.seat === id) return { cls: `${x[1]} me`, html: `<b>G${x[0]}</b><small>${x[1] === "yes" ? "Yes" : "No"}</small>` };
+      return { cls: "", html: "" };
+    });
+  }
+  let seatBusy = false;
+  $("#seatGrid").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-seat]");
+    if (!b || seatBusy || !st.teams) return;
+    const id = b.dataset.seat;
+    if (!st.teams.assign[id]) return toast("この席は、まだ班が決まっていません。先生に伝えよう", true);
+    if (st.mine && st.mine.team && st.mine.team.seat === id) return;
+    pickSeat(id, false);
+  });
+  async function pickSeat(id, force) {
+    seatBusy = true;
+    try {
+      const res = await API.seat({ s: st.s, cls: st.cls, num: st.num, seat: id, force, token: st.token });
+      st.mine = Object.assign({}, st.mine, { team: res.team });
+      renderTeam();
+    } catch (e) {
+      if (authLost(e)) return;
+      if (e.status === 409 && e.data && e.data.taken && !force) {
+        seatBusy = false;
+        if (confirm("この席は、ほかの人が選んでいます。\n自分の席にまちがいなければ「OK」を押してください（前に選んだ人は、選び直しになります）。")) return pickSeat(id, true);
+      } else toast(e.message, true);
+    } finally {
+      seatBusy = false;
+    }
+  }
+
+  /* ---------- 先生からのスタンプ（提出の後の画面。だれが押したかは出さない） ---------- */
+  const stampTotal = () => Object.values((st.mine && st.mine.stamps) || {}).reduce((a, n) => a + (n || 0), 0);
+  function renderStamps() {
+    const n = (st.mine && st.mine.stamps) || {};
+    st.stampSig = JSON.stringify(n);
+    const got = (C.STAMPS || []).filter((x) => n[x.id] > 0);
+    $("#stampCard").classList.toggle("hidden", !got.length);
+    $("#stampRow").innerHTML = got.map((x) => `<span class="stamp"><span class="ic">${x.icon}</span>${esc(x.ja)}${n[x.id] > 1 ? `<b>×${n[x.id]}</b>` : ""}</span>`).join("");
+  }
 
   /* ---------- ログイン ---------- */
   $("#btnStart").addEventListener("click", async () => {
@@ -375,15 +494,14 @@
     if (!id) return toast(`番号は4けたで入れてください（例：${ID_EXAMPLE}）`, true);
     const name = $("#inName").value.trim();
     if (!name) return toast("名字を入力してください", true);
-    const grp = $("#inGrp").value;
     const btn = $("#btnStart");
     btn.disabled = true;
     try {
-      const lg = await API.login({ s, cls: id.cls, num: id.num, grp, name });
+      const lg = await API.login({ s, cls: id.cls, num: id.num, name });
       const res = await API.state(s, id.cls, id.num, lg.token);
-      Object.assign(st, { s, cls: id.cls, num: id.num, grp, token: lg.token, phase: res.phase, lesson: !!res.lesson, mine: res.mine, round: "", fbSig: "" });
+      Object.assign(st, { s, cls: id.cls, num: id.num, token: lg.token, phase: res.phase, lesson: !!res.lesson, mine: res.mine, teams: res.teams || null, round: "", fbSig: "" });
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
-      store.set("oreolive_login", { s, cls: st.cls, num: st.num, grp: st.grp, token: st.token });
+      store.set("oreolive_login", { s, cls: st.cls, num: st.num, token: st.token });
       $("#inName").value = "";
       st.view = "";
       render();
@@ -399,7 +517,7 @@
   function relogin(msg) {
     clearTimeout(timer);
     Object.assign(st, { phase: null, token: "", view: "" });
-    store.set("oreolive_login", { s: st.s, cls: st.cls, num: st.num, grp: st.grp });
+    store.set("oreolive_login", { s: st.s, cls: st.cls, num: st.num });
     render();
     if (msg) toast(msg, true);
   }
@@ -430,12 +548,21 @@
       const res = await API.state(st.s, st.cls, st.num, st.token);
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       const changed = !!res.lesson !== st.lesson; // 先生が研究授業の部を開いた（または読む前に戻した）
+      const stampsBefore = stampTotal();
       st.mine = res.mine || st.mine;
+      st.teams = res.teams || null;
       st.phase = res.phase;
       st.lesson = !!res.lesson;
       if (changed) { st.view = ""; render(); }
       else if (st.view === "vote") render();
-      else if (fbSignature() !== st.fbSig && st.view === "done") rerenderWritings();
+      else if (st.view === "wait") { if (teamSig() !== st.teamSig) renderTeam(); }
+      else if (st.view === "done") {
+        if (fbSignature() !== st.fbSig) rerenderWritings();
+        if (JSON.stringify(st.mine.stamps || {}) !== st.stampSig) {
+          renderStamps();
+          if (stampTotal() > stampsBefore) toast("🎁 先生からスタンプが届きました！");
+        }
+      }
     } catch (e) { authLost(e); /* 一時的な通信エラーは無視して次回再試行 */ }
   }
 
@@ -445,7 +572,7 @@
     if (!b) return;
     $$("#voteBtns button").forEach((x) => (x.disabled = true));
     try {
-      await API.vote({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, stance: b.dataset.v, token: st.token });
+      await API.vote({ s: st.s, cls: st.cls, num: st.num, stance: b.dataset.v, token: st.token });
       st.mine = Object.assign({}, st.mine, { vote: b.dataset.v });
       render();
     } catch (e) {
@@ -540,7 +667,7 @@
     btn.textContent = "提出しています…";
     const round = st.round;
     try {
-      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, grp: st.grp, round, stance: st.stance, body: $("#ta").value, token: st.token });
+      const res = await API.write({ s: st.s, cls: st.cls, num: st.num, round, stance: st.stance, body: $("#ta").value, token: st.token });
       store.del(draftKey(round));
       st.mine = Object.assign({}, st.mine, { [res.round]: { stance: res.stance, body: $("#ta").value.trim(), words: res.words, at: res.at, feedback: null } });
       try { const r = await API.state(st.s, st.cls, st.num, st.token); st.mine = r.mine || st.mine; st.phase = r.phase; st.lesson = !!r.lesson; } catch {}
@@ -571,6 +698,7 @@
     $("#doneLead").textContent = round === "pre"
       ? "AI からのコメントと問いかけを読もう。問いかけの答えは、Lesson 8 を読みながら探してみよう。本文を学んだあとに、もう一度同じ問いで英文を書きます。"
       : both ? "読む前に書いた英文と並べてみよう。考え方や表現は、どう変わったかな？ 最後に、下の振り返りを書こう。" : "AI からのコメントと問いかけを読もう。最後に、下の振り返りを書こう。";
+    renderStamps();
     renderWritings($("#v-done [data-writings]"), round);
     renderReflect($("#v-done [data-reflect]"));
   }
@@ -755,7 +883,7 @@
   if (saved && saved.s && saved.s === st.s && saved.cls && saved.token) {
     API.state(st.s, saved.cls, saved.num, saved.token)
       .then((res) => {
-        Object.assign(st, { cls: saved.cls, num: saved.num, grp: saved.grp || "", token: saved.token, phase: res.phase, lesson: !!res.lesson, mine: res.mine });
+        Object.assign(st, { cls: saved.cls, num: saved.num, token: saved.token, phase: res.phase, lesson: !!res.lesson, mine: res.mine, teams: res.teams || null });
         if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
         render();
         startPolling();

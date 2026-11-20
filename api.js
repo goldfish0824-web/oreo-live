@@ -34,6 +34,7 @@
     if (!res.ok) {
       const err = new Error(data.error || `エラーが発生しました（${res.status}）`);
       err.status = res.status;
+      err.data = data; // 例：席がほかの人に選ばれている（taken）
       throw err;
     }
     return data;
@@ -53,8 +54,14 @@
     write: (p) => asStudent("/api/write", p),
     feedback: (p) => asStudent("/api/feedback", p, { timeout: 90000 }), // コメントが届かなかったときの頼み直し
     reflect: (p) => asStudent("/api/reflect", p),
+    seat: (p) => asStudent("/api/seat", p), // ディベートの席をタップ（force：ほかの人が選んだ席を取り直す）
     unlock: (s, key, cls, num) => http("/api/admin/unlock", { method: "POST", key, body: { s, cls, num } }),
-    live: (s, key, since) => http("/api/live" + q({ s, since }), { key }),
+    // dev = 参観者用ページ・先生用の一覧の端末の印（スタンプを受け取るときだけ）
+    live: (s, key, since, dev) => http("/api/live" + q({ s, since, dev }), { key }),
+    stamp: (s, key, p) => http("/api/stamp", { method: "POST", key, body: { s, ...p } }),
+    teams: (s, key, teams) => http("/api/admin/teams", { method: "POST", key, body: { s, teams } }),
+    seatmaps: (key) => http("/api/admin/seatmaps", { key }),
+    seatmap: (key, map) => http("/api/admin/seatmap", { method: "POST", key, body: map }),
     session: (s, key) => http("/api/admin/session", { method: "POST", key, body: { s } }),
     phase: (s, key, phase) => http("/api/admin/phase", { method: "POST", key, body: { s, phase } }),
     topic: (s, key, topic) => http("/api/admin/topic", { method: "POST", key, body: { s, topic } }),
@@ -76,6 +83,9 @@
     } catch {}
     db = db || { sessions: {}, votes: [], writings: [], seq: 0 };
     db.logins = db.logins || [];
+    db.members = db.members || []; // ディベートの席（生徒がタップ）
+    db.stamps = db.stamps || []; // 先生からのスタンプ
+    db.seatmaps = db.seatmaps || []; // 座席表（クラスごと。セッションをまたぐ）
     return db;
   };
   const topicOf = (se) => (C.TOPICS[se.topic] ? se.topic : C.DEFAULT_TOPIC);
@@ -128,12 +138,22 @@
         ["What would Ms. Ogata say about your idea?", "緒方さんなら、あなたの考えに何と言うだろう？"],
       ],
     },
-    konbini: {
-      post: [
-        ["If your favorite store closed at night, how would your life change?", "よく行く店が夜に閉まったら、生活はどう変わる？"],
-        ["How would a night-shift worker answer your opinion?", "夜勤で働く人は、あなたの意見にどう答えるだろう？"],
-      ],
-    },
+    part1: { post: [
+      ["Which is more important to you, helping people in Japan or in other countries?", "あなたにとって大切なのは、日本の人を助けることと外国の人を助けること、どちら？"],
+      ["How would someone who pays taxes answer your opinion?", "税金を払っている人は、あなたの意見にどう答えるだろう？"],
+    ] },
+    part2: { post: [
+      ["If everyone broke the rules for a good reason, what would happen?", "みんながよい理由でルールを破ったら、どうなるだろう？"],
+      ["Who should decide when a rule can be broken?", "ルールを破ってよいときは、だれが決めるべきだろう？"],
+    ] },
+    part3: { post: [
+      ["If you had to leave Japan, which country would you go to, and why?", "もし日本を離れなければならないなら、どの国に行く？ それはなぜ？"],
+      ["What would a refugee child say about your idea?", "難民の子どもは、あなたの考えに何と言うだろう？"],
+    ] },
+    part4: { post: [
+      ["If you were an aid worker's family, how would you feel?", "もしあなたが支援する人の家族だったら、どう感じる？"],
+      ["How can people help refugees without going to dangerous places?", "危険な場所に行かずに、難民を助ける方法はあるだろうか？"],
+    ] },
   };
   // デモのコメント・問いかけ・添削：よくある誤りだけを機械的に直す（本番では AI が英文全体を見て作る）
   function demoFeedback(w, topic, before) {
@@ -189,6 +209,19 @@
     if (key && (key === DEMO_TEACHER_KEY || (mon && mon.key === key))) return "teacher";
     err(se.obsPass ? "パスワードが正しくありません" : "参観者用のパスワードがまだ決まっていません。授業の先生に確認してください", 401);
   }
+  // チーム分け（本番と同じ考え方：班と立場は、生徒が選んだ席から決まる）
+  const splitOf = (se) => (se.teams && se.teams.assign && Object.keys(se.teams.assign).length ? se.teams : null);
+  const teamOf = (teams, seat) => {
+    const a = teams && seat && teams.assign ? teams.assign[seat] : null;
+    return a ? { seat, grp: String(a[0]), side: a[1] } : null;
+  };
+  const seatOf = (db, se, st) => (db.members.find((x) => x.session === se.code && x.student === st) || {}).seat;
+  // スタンプ：{ counts: { clear: 2, … }, mine: [...] }
+  const STAMP_IDS = (C.STAMPS || []).map((x) => x.id);
+  const stampsOut = (list, dev) => ({
+    counts: Object.fromEntries(STAMP_IDS.map((k) => [k, list.filter((x) => x.stamp === k).length])),
+    mine: STAMP_IDS.filter((k) => dev && list.some((x) => x.stamp === k && x.dev === dev)),
+  });
 
   const demo = {
     async login(p) {
@@ -210,14 +243,35 @@
       const db = load();
       const se = sess(db, s);
       const out = { code: se.code, phase: se.phase, lesson: lessonOpen(se), topic: topicOf(se) };
+      const split = splitOf(se);
+      if (split) out.teams = { rows: split.rows, cols: split.cols, seats: split.seats, assign: split.assign, at: split.at };
       if (cls) {
         const st = studentId({ cls, num });
         needLogin(db, se, st, token);
         const v = db.votes.find((x) => x.session === se.code && x.student === st);
         const w = (r) => db.writings.find((x) => x.session === se.code && x.student === st && x.round === r);
-        out.mine = { vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")) };
+        out.mine = {
+          vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")),
+          team: teamOf(split, seatOf(db, se, st)),
+          stamps: stampsOut(db.stamps.filter((x) => x.session === se.code && x.student === st)).counts,
+        };
       }
       return out;
+    },
+    async seat(p) {
+      await wait(150);
+      const db = load();
+      const se = sess(db, p.s);
+      const st = studentId(p);
+      needLogin(db, se, st, p.token);
+      const team = teamOf(splitOf(se), String(p.seat || ""));
+      if (!team) err("その席は、今日のチームに入っていません。モニターの座席表を確かめてください", 409);
+      const other = db.members.find((x) => x.session === se.code && x.seat === team.seat && x.student !== st);
+      if (other && !p.force) { const e = new Error("その席は、ほかの人が選んでいます"); e.status = 409; e.data = { taken: true }; throw e; }
+      db.members = db.members.filter((x) => !(x.session === se.code && (x.student === st || x.seat === team.seat)));
+      db.members.push({ session: se.code, student: st, seat: team.seat, at: Date.now() });
+      save(db);
+      return { ok: true, team };
     },
     async vote(p) {
       await wait(200);
@@ -249,7 +303,8 @@
       if (db.writings.some((x) => x.session === se.code && x.student === st && x.round === round)) err("この英文はもう提出しています", 409);
       const at = Date.now();
       const id = ++db.seq;
-      db.writings.push({ id, session: se.code, student: st, grp: String(p.grp || ""), round, stance: p.stance, body, words: w, translation: DEMO_TR, flag: "ok", feedback: null, reflection: null, at, upd: at });
+      const team = teamOf(splitOf(se), seatOf(db, se, st)); // ディベートの班は、生徒が選んだ席から
+      db.writings.push({ id, session: se.code, student: st, grp: team ? team.grp : String(p.grp || ""), round, stance: p.stance, body, words: w, translation: DEMO_TR, flag: "ok", feedback: null, reflection: null, at, upd: at });
       save(db);
       // 本番と同じく、コメント・問いかけ・添削は少し後に届く
       setTimeout(() => {
@@ -290,12 +345,13 @@
       save(db);
       return { ok: true, reflection: text, at: w.upd };
     },
-    async live(s, key, since) {
+    async live(s, key, since, dev) {
       await wait(80);
       const db = load();
       const se = sess(db, s);
       const role = demoRole(se, key);
-      return {
+      const teams = se.teams || null;
+      const out = {
         role,
         phase: se.phase,
         lesson: lessonOpen(se),
@@ -303,8 +359,51 @@
         votes: db.votes.filter((x) => x.session === se.code),
         writings: db.writings.filter((x) => x.session === se.code && x.upd >= (since || 0)).map(strip),
         summary: se.summary || null,
+        teams,
+        members: db.members.filter((x) => x.session === se.code).map((m) => ({ student: m.student, ...(teamOf(teams, m.seat) || { seat: m.seat, grp: "", side: "" }) })),
         serverTime: Date.now(),
       };
+      if (dev) {
+        const list = db.stamps.filter((x) => x.session === se.code);
+        out.stamps = Object.fromEntries([...new Set(list.map((x) => x.student))].map((st) => [st, stampsOut(list.filter((x) => x.student === st), dev)]));
+      }
+      return out;
+    },
+    async stamp(s, key, p) {
+      await wait(120);
+      const db = load();
+      const se = sess(db, s);
+      demoRole(se, key);
+      if (!STAMP_IDS.includes(p.stamp)) err("スタンプの種類が正しくありません");
+      if (!db.writings.some((x) => x.session === se.code && x.student === p.student)) err("この生徒の英文が見つかりません", 404);
+      const same = (x) => x.session === se.code && x.student === p.student && x.dev === p.dev && x.stamp === p.stamp;
+      if (p.on === false) db.stamps = db.stamps.filter((x) => !same(x));
+      else if (!db.stamps.some(same)) db.stamps.push({ session: se.code, student: p.student, dev: p.dev, stamp: p.stamp, at: Date.now() });
+      save(db);
+      return { ok: true, student: p.student, ...stampsOut(db.stamps.filter((x) => x.session === se.code && x.student === p.student), p.dev) };
+    },
+    async teams(s, key, teams) {
+      const db = load();
+      const se = sess(db, s);
+      se.teams = teams ? Object.assign({}, teams, { at: Date.now() }) : null;
+      save(db);
+      return { code: se.code, teams: se.teams };
+    },
+    async seatmaps() {
+      return { maps: load().seatmaps };
+    },
+    async seatmap(key, map) {
+      const db = load();
+      const name = String(map.name || "").trim().slice(0, 40);
+      if (!name) err("座席表の名前を入れてください（例：2年4・5・6組）");
+      db.seatmaps = db.seatmaps.filter((x) => x.name !== name);
+      if (map.remove) { save(db); return { ok: true, removed: 1 }; }
+      if (!(map.seats || []).length) err("使う席を1つ以上タップしてください");
+      const m = { name, rows: map.rows, cols: map.cols, seats: map.seats.slice(), at: Date.now() };
+      db.seatmaps.push(m);
+      db.seatmaps.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+      save(db);
+      return { ok: true, map: m };
     },
     async session(s) {
       const db = load();
@@ -350,8 +449,7 @@
       const se = sess(db, s);
       const ws = db.writings.filter((x) => x.session === se.code);
       if (!ws.length) err("まだ英文がありません");
-      const konbini = topicOf(se) === "konbini";
-      const text = konbini ? DEMO_SUMMARY.konbini : DEMO_SUMMARY.refugees;
+      const text = DEMO_SUMMARY[topicOf(se)] || DEMO_SUMMARY.refugees;
       const roundOut = (round, key) => {
         const list = ws.filter((x) => x.round === round);
         return Object.fromEntries(["yes", "no", "unsure"].map((k) => {
@@ -379,8 +477,11 @@
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
       db.logins = db.logins.filter((x) => x.session !== se.code);
+      db.members = db.members.filter((x) => x.session !== se.code);
+      db.stamps = db.stamps.filter((x) => x.session !== se.code);
       se.phase = "pre";
       se.summary = null;
+      se.teams = null;
       save(db);
       return { ok: true };
     },
@@ -402,9 +503,11 @@
       const db = load();
       const se = sess(db, s);
       const people = new Map();
-      const get = (id) => people.get(id) || people.set(id, { student: id, grp: "", vote: "", pre: null, post: null }).get(id);
+      const get = (id) => people.get(id) || people.set(id, { student: id, grp: "", side: "", vote: "", pre: null, post: null }).get(id);
       db.votes.filter((x) => x.session === se.code).forEach((v) => Object.assign(get(v.student), { vote: v.stance, grp: v.grp }));
       db.writings.filter((x) => x.session === se.code).forEach((w) => { get(w.student)[w.round] = w; if (w.grp) get(w.student).grp = w.grp; });
+      db.members.filter((x) => x.session === se.code).forEach((m) => { const t = teamOf(se.teams, m.seat); if (t) Object.assign(get(m.student), { grp: t.grp, side: t.side === "yes" ? "Yes側" : "No側" }); });
+      const stampN = (st, k) => db.stamps.filter((x) => x.session === se.code && x.student === st && x.stamp === k).length;
       const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
       const part = (w) => {
         if (!w) return Array(8).fill("");
@@ -412,48 +515,68 @@
         return [w.stance, w.words, w.body, f.comment || "", (f.questions || []).map((q) => `${q.en}（${q.ja}）`).join(" / "), f.corrected || "", w.translation || "", w.flag || ""];
       };
       const cols = (p) => [`${p}の立場`, `${p}の語数`, `${p}の英文`, `${p}のAIコメント`, `${p}のAIの問いかけ`, `${p}の添削後`, `${p}の和訳(AI)`, `${p}のフラグ`];
-      const head = ["組-番号", "グループ", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り"];
-      const rows = [...people.values()].map((x) => [x.student, x.grp, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || ""].map(esc).join(","));
+      const head = ["組-番号", "グループ", "ディベートの立場", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り", ...(C.STAMPS || []).map((x) => `スタンプ「${x.ja}」`)];
+      const rows = [...people.values()].map((x) => [x.student, x.grp, x.side, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || "", ...STAMP_IDS.map((k) => stampN(x.student, k))].map(esc).join(","));
       return new Blob(["﻿" + [head.map(esc).join(","), ...rows].join("\r\n")], { type: "text/csv" });
     },
-    // モニターの見た目確認用：28人分のサンプル（本番のトピックは読む前と後、練習は1回だけ）を投入
+    // モニターの見た目確認用：28人分のサンプル（本番のトピックは読む前と後、各 Part のディベートは1回だけ）を投入。
+    // チーム分け（デモの教室：5×6 の30席、欠席2）と、席の選択・先生からのスタンプも入れる
     async seed(s) {
       const db = load();
       const se = sess(db, s);
-      const konbini = topicOf(se) === "konbini";
-      const S = konbini ? DEMO_SAMPLES.konbini : DEMO_SAMPLES.refugees;
+      const topic = topicOf(se);
+      const two = !!C.TOPICS[topic].PRE_WRITING; // 読む前にも書くトピック（本番）
+      const S = DEMO_SAMPLES[topic] || DEMO_SAMPLES.refugees;
       const stances = ["yes", "no", "unsure"];
       const base = Date.now() - 40 * 60000;
       let n = 0;
       db.votes = db.votes.filter((x) => x.session !== se.code);
       db.writings = db.writings.filter((x) => x.session !== se.code);
-      const topic = topicOf(se);
+      db.members = db.members.filter((x) => x.session !== se.code);
+      db.stamps = db.stamps.filter((x) => x.session !== se.code);
+      const MAP = "デモの教室（5×6）";
+      let map = db.seatmaps.find((m) => m.name === MAP);
+      if (!map) {
+        map = { name: MAP, rows: 5, cols: 6, seats: [...Array(30).keys()].map((i) => `${Math.floor(i / 6)}-${i % 6}`), at: Date.now() };
+        db.seatmaps.push(map);
+      }
+      const absent = ["2-3", "4-5"];
+      const present = map.seats.filter((x) => !absent.includes(x));
+      se.teams = { map: MAP, rows: map.rows, cols: map.cols, seats: map.seats.slice(), absent, assign: window.OREO_SEAT.split(map.rows, map.cols, present), at: Date.now() };
       const add = (w) => {
         const x = Object.assign({ id: ++db.seq, session: se.code, flag: "ok", feedback: null, reflection: null }, w, { words: words(w.body), upd: w.at });
         db.writings.push(x);
         return x;
       };
-      const REFL = konbini ? DEMO_REFLECTIONS.konbini : DEMO_REFLECTIONS.refugees;
+      const REFL = DEMO_REFLECTIONS[topic] || DEMO_REFLECTIONS.parts;
       for (const cls of ["4", "5", "6"]) {
         for (let num = 1; num <= 10 && n < 28; num++, n++) {
           const student = `${cls}-${num}`;
-          const grp = String((n % 8) + 1);
+          // 1人を除いて、自分の席を選んだことにする（班はその席から決まる）
+          const seat = present[n];
+          if (n !== 27) db.members.push({ session: se.code, student, seat, at: base });
+          const grp = n !== 27 ? String(se.teams.assign[seat][0]) : "";
           const first = stances[(n * 7) % 3];
           let pre = null;
-          if (!konbini) {
+          if (two) {
             // 読む前は Not sure が多め
             const ps = n % 5 < 2 ? "unsure" : stances[(n * 7 + 1) % 3];
             const t = S.pre[ps][n % S.pre[ps].length];
             pre = add({ student, grp, round: "pre", stance: ps, body: t[0], translation: t[1], at: base - 20 * 86400000 + n * 30000 });
             pre.feedback = demoFeedback(pre, topic, null);
           }
-          db.votes.push({ session: se.code, student, grp, stance: first });
+          db.votes.push({ session: se.code, student, grp: "", stance: first });
           if (n >= 26) continue; // 2人はまだ書いていない
           const stance = n % 10 === 3 ? (first === "yes" ? "no" : "yes") : first === "unsure" ? (n % 2 ? "yes" : "no") : first;
-          const t = S.post[stance][n % 4];
+          const t = S.post[stance][n % S.post[stance].length];
           const post = add({ student, grp, round: "post", stance, body: t[0], translation: t[1], at: base + 30 * 60000 + n * 20000 });
           if (n !== 25) post.feedback = demoFeedback(post, topic, pre); // 1人はコメントがまだ届いていない
           if (n % 3 !== 2) post.reflection = REFL[n % REFL.length];
+          // 先生からのスタンプ（2人の先生が押したことにする。まだもらっていない生徒もいる）
+          (C.STAMPS || []).forEach((x, k) => {
+            if ((n + k) % 3 === 0) db.stamps.push({ session: se.code, student, dev: "demo-teacher-1", stamp: x.id, at: base });
+            if ((n + k) % 5 === 1) db.stamps.push({ session: se.code, student, dev: "demo-teacher-2", stamp: x.id, at: base });
+          });
         }
       }
       se.phase = "lesson"; // サンプルは授業の後までのデータなので、研究授業の部を開いた状態にする
@@ -497,20 +620,56 @@
         ],
       },
     },
-    konbini: {
+    // 教科書の各 Part の後のディベート（ライティングは1回だけ）
+    part1: {
       pre: { yes: [], no: [], unsure: [] },
       post: {
         yes: [
-          ["I believe convenience stores should stay open 24 hours. First of all, they are very convenient for people who work late. For example, my father comes home at 11 p.m., and he often buys dinner at a convenience store. Therefore, they should stay open for people with different lifestyles.", "コンビニは24時間営業を続けるべきだと思う。まず第一に、遅くまで働く人にとってとても便利だ。例えば、私の父は午後11時に帰宅し、よくコンビニで夕食を買う。だから、さまざまな生活スタイルの人のために営業を続けるべきだ。"],
-          ["In my opinion, convenience stores should stay open 24 hours. This is because they help us in an emergency. When a big typhoon came last year, people could buy water and food at night. For these reasons, we need stores that are always open.", "私の意見では、コンビニは24時間営業を続けるべきだ。なぜなら、緊急のときに私たちを助けてくれるからだ。去年大きな台風が来たとき、人々は夜でも水や食べ物を買えた。これらの理由から、いつでも開いている店が必要だ。"],
-          ["I think convenience stores should stay open 24 hours. The main reason is that people feel safe at night. The street near my house is dark, but the store's light makes me feel safe when I come home from club. So they should stay open.", "コンビニは24時間営業を続けるべきだと思う。主な理由は、夜に人々が安心できることだ。家の近くの道は暗いが、部活から帰るとき、店の明かりがあると安心できる。だから営業を続けるべきだ。"],
-          ["I believe convenience stores should stay open. Stores can earn more money and give people jobs. Some university students want to work at night because they have classes in the daytime. That is why 24-hour stores are good for our town.", "コンビニは営業を続けるべきだと思う。店はもっとお金を稼げるし、人々に仕事を与えられる。昼間に授業があるので、夜に働きたい大学生もいる。だから、24時間営業の店は私たちの町にとって良いものだ。"],
+          ["I believe Japan should spend more money to help people in other countries. First of all, many people are suffering from hunger and war. Japan is a rich country, so we can save many lives. For example, UNHCR gives food and medical care to refugees. Therefore, Japan should help more.", "日本は外国の人々を助けるために、もっとお金を使うべきだと思う。まず第一に、多くの人が飢えや戦争で苦しんでいる。日本は豊かな国なので、多くの命を救える。例えば、UNHCR は難民に食料や医療を届けている。だから、日本はもっと助けるべきだ。"],
+          ["I think Japan should spend more money. Japan is a member of the international community. If Japan helps other countries now, they will help Japan in the future, for example after a big earthquake.", "日本はもっとお金を使うべきだと思う。日本は国際社会の一員だ。今、日本がほかの国を助ければ、例えば大きな地震のあとなど、将来その国々が日本を助けてくれるだろう。"],
         ],
         no: [
-          ["I don't think convenience stores should stay open 24 hours. This is because Japan has a labor shortage. For example, a store near my station cannot find enough staff, so the owner works more than 12 hours a day. Therefore, stores should close at night.", "コンビニが24時間営業を続けるべきだとは思わない。なぜなら、日本は人手不足だからだ。例えば、駅の近くの店は十分な店員を見つけられず、オーナーが1日12時間以上働いている。だから、店は夜に閉めるべきだ。"],
-          ["In my opinion, convenience stores should not stay open 24 hours. The main reason is that the night shift has a bad effect on workers' health. My cousin worked at night for a year, and she was always tired and could not sleep well. For these reasons, stores should close at night.", "私の意見では、コンビニは24時間営業を続けるべきではない。主な理由は、夜勤が働く人の健康に悪い影響を与えることだ。私のいとこは1年間夜に働いていたが、いつも疲れていて、よく眠れなかった。これらの理由から、店は夜に閉めるべきだ。"],
-          ["I don't think stores should stay open 24 hours. It wastes a lot of energy. The lights and air conditioners are on all night, even when there are few customers. So closing at night can save energy.", "店が24時間営業を続けるべきだとは思わない。たくさんのエネルギーを無駄にする。客が少ないときでも、照明やエアコンが一晩中ついている。だから、夜に閉めればエネルギーを節約できる。"],
-          ["I think convenience stores should close at night. There are few customers late at night. In my town, I see almost no one in the store after midnight. So it is not necessary to stay open.", "コンビニは夜に閉めるべきだと思う。夜遅くは客が少ない。私の町では、真夜中を過ぎると店にほとんど人がいない。だから、営業を続ける必要はない。"],
+          ["I don't think Japan should spend more money now. This is because Japan has its own problems, such as the aging society. We need money for pensions and hospitals. So Japan should use the money for people in Japan first.", "日本が今、もっとお金を使うべきだとは思わない。なぜなら、日本には高齢化社会など自分たちの課題があるからだ。年金や病院にお金が必要だ。だから、日本はまず日本の人々のためにお金を使うべきだ。"],
+          ["In my opinion, Japan should not spend more money. Money is not the only way to help. Japan can send doctors and teachers instead. I think people are more important than money.", "私の意見では、日本はこれ以上お金を使うべきではない。お金だけが助ける方法ではない。日本は代わりに医者や先生を送ることができる。お金より人のほうが大切だと思う。"],
+        ],
+      },
+    },
+    part2: {
+      pre: { yes: [], no: [], unsure: [] },
+      post: {
+        yes: [
+          ["I think it is OK to break the rules to save people's lives. Human life is the most important thing. Ms. Ogata protected the Kurdish people even though they were not refugees officially. If she followed the rules, many people would die.", "命を救うためなら、ルールを破ってもよいと思う。人の命が何より大切だ。緒方さんは、正式には難民ではなかったクルドの人々を守った。もし彼女がルールに従っていたら、多くの人が死んでいただろう。"],
+          ["I believe we can break the rules in an emergency. For example, an ambulance can go through a red light to save a sick person. Rules are made to protect people.", "緊急のときは、ルールを破ってもよいと思う。例えば、救急車は病気の人を救うために赤信号でも進める。ルールは人を守るためにつくられている。"],
+        ],
+        no: [
+          ["I don't think we should break the rules. If one person breaks the rules, other people will do the same thing. Then the rules will not work and people will lose trust.", "ルールを破るべきではないと思う。1人がルールを破ると、ほかの人も同じことをするだろう。そうなるとルールが働かなくなり、人々は信頼を失う。"],
+          ["In my opinion, we should not break the rules, but we can change them. Ms. Ogata talked with the leaders of other countries and made a safe place for the people. She did not just break the rules. So we should find another way.", "私の意見では、ルールを破るべきではないが、変えることはできる。緒方さんはほかの国の指導者と話し合い、人々のための安全な場所をつくった。彼女はただルールを破ったのではない。だから、私たちは別の方法を探すべきだ。"],
+        ],
+      },
+    },
+    part3: {
+      pre: { yes: [], no: [], unsure: [] },
+      post: {
+        yes: [
+          ["I believe refugees should live in a country near their home country. Most refugees want to go back home. If they live near their country, they can go back soon when peace returns.", "難民は、自分の国に近い国で暮らすほうがよいと思う。ほとんどの難民は故郷に帰りたいと思っている。自分の国の近くに住んでいれば、平和が戻ったときにすぐに帰れる。"],
+          ["I think a neighboring country is better because the culture and language are similar. Refugees can start a new life more easily. Children can also study in a language they know.", "近くの国のほうがよいと思う。文化や言葉が似ているからだ。難民は新しい生活をより簡単に始められる。子どもたちも、知っている言葉で勉強できる。"],
+        ],
+        no: [
+          ["I don't think refugees have to live near their home country. The neighboring countries are sometimes not safe. Refugees need a safe and stable place, even if it is far from home.", "難民が自分の国の近くに住まなければならないとは思わない。近くの国が安全でないこともある。故郷から遠くても、難民には安全で安定した場所が必要だ。"],
+          ["In my opinion, refugees should choose the country. Some neighboring countries already have too many refugees. For example, Iran accepted about 1.3 million Kurdish refugees. Other countries should share the burden.", "私の意見では、難民が国を選ぶべきだ。近くの国の中には、すでに多すぎる難民を受け入れている国もある。例えば、イランは約130万人のクルド難民を受け入れた。ほかの国々も負担を分け合うべきだ。"],
+        ],
+      },
+    },
+    part4: {
+      pre: { yes: [], no: [], unsure: [] },
+      post: {
+        yes: [
+          ["I believe aid workers should stay in dangerous places. If they leave, refugees will lose their only help. Ms. Ogata told her colleague to stay if he could save refugees.", "支援する人は、危険な場所にとどまるべきだと思う。彼らが去れば、難民はただ1つの助けを失ってしまう。緒方さんは同僚に、難民を救えるならとどまるようにと言った。"],
+          ["I think aid workers should stay because refugees trust them. When the workers are there, refugees feel safe. Their work is very important.", "支援する人はとどまるべきだと思う。難民が彼らを信頼しているからだ。支援する人がそこにいると、難民は安心できる。彼らの仕事はとても大切だ。"],
+        ],
+        no: [
+          ["I don't think aid workers should stay in dangerous places. Their lives are also important. They have their own families. If they die, they cannot help anyone in the future.", "支援する人が危険な場所にとどまるべきだとは思わない。彼らの命も大切だ。彼らにも家族がいる。もし死んでしまったら、将来だれも助けられなくなる。"],
+          ["In my opinion, aid workers should leave the area for a while. They can help refugees in other ways, for example by sending supplies from a safe place.", "私の意見では、支援する人はしばらくその地域を離れるべきだ。例えば安全な場所から物資を送るなど、ほかの方法で難民を助けられる。"],
         ],
       },
     },
@@ -524,10 +683,11 @@
       "ディベートで相手に「お金はどうするの？」と言われて、答えられなかった。AI の問いかけも同じことを聞いていたので、もっと調べたい。",
       "前は日本語が混ざっていたけど、今日は全部英語で書けた。labor shortage という表現を使えたのがうれしい。",
     ],
-    konbini: [
-      "最初は便利だから続けるべきだと思っていたが、店員さんの立場で考えると、夜は大変だとわかった。",
-      "立場は変わらなかったけど、災害のときに役立つという理由がはっきりした。",
-      "相手の「電気がもったいない」という意見になるほどと思った。英語で理由を2つ書けた。",
+    // 教科書の各 Part の後のディベート（どの Part でも使う）
+    parts: [
+      "最初は Yes だと思っていたが、相手のメモを読んで、反対の理由にもなるほどと思った。",
+      "立場は変わらなかったけど、本文の内容を理由に使えて、言いたいことがはっきりした。",
+      "英語で理由を2つ書けた。ディベートで聞いた表現を使ってみた。",
     ],
   };
   // デモのまとめ（[全体の傾向, 主な考え1, 2, 3]）
@@ -545,13 +705,37 @@
       shift: "読む前は「かわいそう」「なんとなく不安」など気持ちの理由が多く見られました。授業の後は、本文の数字（187人など）や緒方さんの言葉を根拠にした理由が増え、英文も長くなっています。",
       common: "どちらの立場も、難民の命を大切にしたいこと、受け入れるなら十分な支援が必要だと考えている点は同じです。",
     },
-    konbini: {
+    part1: {
       after: {
-        yes: ["自分や家族の生活をもとにした理由が多い", "遅くまで働く人に便利", "災害のときに助かる", "夜道が明るく安心"],
-        no: ["働く人の負担を心配する意見が多い", "人手不足で店員が大変", "夜勤は健康に悪い", "夜は客が少なく電気がもったいない"],
+        yes: ["困っている人を救いたいという理由が多い", "豊かな国としての責任", "国際社会の一員として", "いつか日本も助けてもらえる"],
+        no: ["日本の課題を先に考えたいという意見が多い", "高齢化などにお金が必要", "お金以外の助け方もある"],
       },
       shift: "",
-      common: "どちらの立場も、便利さは大切だが、働く人の健康も大切だと考えています。",
+      common: "どちらの立場も、困っている人を助けたい気持ちと、日本の暮らしも大切だという考えは同じです。",
+    },
+    part2: {
+      after: {
+        yes: ["命が何より大切だという理由が多い", "緊急のときは命が優先", "ルールは人を守るためのもの"],
+        no: ["ルールを守る意味を大切にする意見が多い", "まねをする人が出る", "ルールは破るより変えるべき"],
+      },
+      shift: "",
+      common: "どちらの立場も、命を大切にしたいことと、ルールには人を守る意味があることは同じです。",
+    },
+    part3: {
+      after: {
+        yes: ["故郷に帰りやすいことを理由にする意見が多い", "平和になったらすぐ帰れる", "文化や言葉が似ている"],
+        no: ["安全を何より大切にする意見が多い", "近くの国が安全とは限らない", "負担を分け合うべき"],
+      },
+      shift: "",
+      common: "どちらの立場も、難民が安全に暮らし、いつか故郷に帰れることを願っています。",
+    },
+    part4: {
+      after: {
+        yes: ["難民を見捨てないことを大切にする意見が多い", "難民の唯一の助けになる", "信頼されている人がいると安心"],
+        no: ["支援する人の命も大切にする意見が多い", "支援する人にも家族がいる", "安全な場所からも助けられる"],
+      },
+      shift: "",
+      common: "どちらの立場も、難民の命と支援する人の命の両方を大切にしたいと考えています。",
     },
   };
 

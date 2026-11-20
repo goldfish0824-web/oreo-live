@@ -87,6 +87,23 @@
   .prog { height: 10px; background: rgba(255,255,255,0.14); border-radius: 99px; overflow: hidden; margin: 8px auto 18px; max-width: 720px; }
   .prog div { height: 100%; background: var(--pop); border-radius: 99px; width: 0; transition: width 0.2s linear; }
   .timer-ctrl { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  /* ① 立論メモを書く：3つの視点 */
+  .timer-card .vp { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 1100px; margin: 4px auto 0; padding: 0; text-align: left; }
+  .timer-card .vp li { background: rgba(255,255,255,0.08); border-radius: 16px; padding: 12px 16px; }
+  .timer-card .vp b { display: block; font-family: var(--font-en); font-weight: 900; color: var(--pop); font-size: clamp(20px, 2.2vw, 34px); line-height: 1.2; }
+  .timer-card .vp span { color: rgba(251,247,238,0.82); font-size: clamp(15px, 1.4vw, 22px); font-weight: 700; }
+
+  /* チーム分け */
+  .team-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .team-bar select { width: auto; min-width: 220px; }
+  .team-edit { display: flex; gap: 10px 14px; align-items: center; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; }
+  .team-edit label { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; font-size: 14px; }
+  .team-edit input { width: auto; }
+  .team-edit input[type="number"] { width: 70px; }
+  .team-edit input[type="text"] { width: 200px; }
+  .team-info { font-weight: 800; font-size: clamp(16px, 1.5vw, 22px); margin: 4px 0 10px; }
+  .team-info .muted { font-weight: 600; font-size: 0.8em; }
+  #tGrid .seatgrid { --seat-h: clamp(54px, 7.5vh, 92px); gap: clamp(6px, 0.8vw, 12px); font-size: clamp(14px, 1.5vw, 24px); }
 
   /* ライティング */
   .write-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(18px, 3vw, 40px); align-items: start; }
@@ -243,9 +260,40 @@
       </div>
     </section>
 
-    <!-- 2 ディベート -->
+    <!-- 2 ディベート（チーム分け → タイマー） -->
     <section class="pane hidden" data-pane="debate">
-      <div class="debate-layout">
+      <div class="subtabs">
+        <div class="seg" id="dView"><button data-v="teams">チーム分け</button><button data-v="timer">タイマー</button></div>
+        <span class="small muted" id="dViewHint"></span>
+      </div>
+
+      <!-- チーム分け：座席表で欠席の席を外し、「チームを分ける」と席ごとに G1-Yes などが決まる。生徒はタブレットで自分の席をタップする -->
+      <div id="dTeams" class="hidden">
+        <div class="team-bar">
+          <select id="tMapSel" aria-label="座席表"></select>
+          <div class="seg" id="tMode"><button data-m="absent">欠席をタップ</button><button data-m="swap">入れかえ</button><button data-m="edit">座席表を作る・直す</button></div>
+          <span class="spacer"></span>
+          <button class="btn btn-primary" id="tSplit">チームを分ける</button>
+        </div>
+        <div class="team-edit hidden" id="tEdit">
+          <label>名前 <input id="tName" type="text" maxlength="40" placeholder="例：2年4・5・6組"></label>
+          <label>行（前→後ろ）<input id="tRows" type="number" min="1" max="10"></label>
+          <label>列<input id="tCols" type="number" min="1" max="10"></label>
+          <button class="btn btn-primary btn-sm" id="tSaveMap">この座席表を保存</button>
+          <button class="btn btn-danger btn-sm" id="tDelMap">消す</button>
+          <span class="small muted">机のある席をタップして選びます（点線は机のない場所）。座席表はクラスごとに保存され、次の授業でも使えます。</span>
+        </div>
+        <p class="team-info" id="tInfo"></p>
+        <div class="seat-front">前（黒板・モニター）</div>
+        <div id="tGrid"></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn btn-sm" id="tFlip">全班の Yes と No を入れかえる</button>
+          <button class="btn btn-sm btn-ghost" id="tClearTeams">チーム分けを消す</button>
+          <span class="small muted" id="tSaved"></span>
+        </div>
+      </div>
+
+      <div class="debate-layout" id="dTimer">
         <div>
           <div class="ttl">Mini-Debate</div>
           <ul class="phase-list" id="phaseList"></ul>
@@ -257,6 +305,7 @@
           <div class="clock huge" id="dClock">0:00</div>
           <div class="prog"><div id="dProg"></div></div>
           <div class="hint hidden" id="dHint"></div>
+          <ol class="vp hidden" id="dVp"></ol>
           <div class="timer-ctrl" style="margin-top:20px">
             <button class="btn" id="dPrev">◀ 前へ</button>
             <button class="btn btn-primary" id="dToggle">▶ スタート</button>
@@ -398,7 +447,8 @@
   /* ================= データ ================= */
   const S = { s: "", key: "", observerPassword: "" };
   // lesson = 研究授業の部が開いているか（先生が「研究授業を始める」を1回押す。練習のトピックは最初から開いている）
-  const D = { since: 0, writings: new Map(), votes: [], summary: null, phase: null, lesson: false, topic: "", ok: true, loaded: false };
+  // members = ディベートの席を選んだ生徒（班と立場）。モニターには一人ひとりの名前や英文は出さない（座席表の ✓ と、班ごとの人数だけ）
+  const D = { since: 0, writings: new Map(), votes: [], members: [], summary: null, phase: null, lesson: false, topic: "", ok: true, loaded: false };
   const byRound = (round) => [...D.writings.values()].filter((w) => w.round === round);
   function counts(list, key) { const c = {}; list.forEach((x) => (c[x[key]] = (c[x[key]] || 0) + 1)); return c; }
 
@@ -449,6 +499,7 @@
       $$("[data-code]").forEach((e) => (e.textContent = S.s));
       $("#codeShow").textContent = "セッション " + S.s;
       drawQRs();
+      teamsUI.loadMaps();
       showTab(store.get("oreolive_monitor_tab") || "setup");
       await poll();
       setMode(wModeAuto(), false);
@@ -521,9 +572,9 @@
   document.addEventListener("keydown", (e) => {
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || $("#appMon").classList.contains("hidden")) return;
     if (/^[0-6]$/.test(e.key)) showTab(TAB_KEYS[+e.key]);
-    else if (e.key === " ") { e.preventDefault(); if (tab === "debate") debate.toggle(); else if (tab === "write") (wTimer.running ? wTimer.pause() : wTimer.start()); else if (tab === "reflect") rfTimer.toggle(); }
-    else if (e.key === "ArrowRight" && tab === "debate") debate.next();
-    else if (e.key === "ArrowLeft" && tab === "debate") debate.prev();
+    else if (e.key === " ") { e.preventDefault(); if (tab === "debate") { if (teamsUI.view === "timer") debate.toggle(); } else if (tab === "write") (wTimer.running ? wTimer.pause() : wTimer.start()); else if (tab === "reflect") rfTimer.toggle(); }
+    else if (e.key === "ArrowRight" && tab === "debate" && teamsUI.view === "timer") debate.next();
+    else if (e.key === "ArrowLeft" && tab === "debate" && teamsUI.view === "timer") debate.prev();
   });
   $("#btnFull").addEventListener("click", () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); });
 
@@ -550,12 +601,15 @@
 
   /* ================= ポーリング ================= */
   async function poll() {
+    const t0 = Date.now();
     try {
       const res = await API.live(S.s, S.key, D.since);
       D.votes = res.votes || [];
       // 和訳や添削が後から付くと upd が進むので、同じ id は上書きする
       (res.writings || []).forEach((w) => { D.writings.set(w.id, w); D.since = Math.max(D.since, w.upd || 0); });
       D.summary = res.summary || null;
+      D.members = res.members || [];
+      teamsUI.fromServer(res.teams || null, t0);
       D.phase = res.phase;
       D.lesson = !!res.lesson;
       D.loaded = true;
@@ -586,6 +640,7 @@
     $("#fConn").textContent = D.ok ? "" : "⚠ 通信エラー（再試行中）";
   }
   function renderActive() {
+    if (tab === "debate") teamsUI.render();
     if (tab === "vote") renderVote();
     if (tab === "write") renderWrite();
     if (tab === "results") renderResults();
@@ -646,7 +701,7 @@
       beep(3);
       if ($("#autoNext").checked && i < P.length - 1) { clearTimeout(autoT); autoT = setTimeout(() => { go(i + 1); timer.start(); }, 3000); }
     });
-    function hintOf(p) { return /反論/.test(p.label) ? T.DEBATE_HINTS.rebut : p.side ? T.DEBATE_HINTS[p.side] : ""; }
+    function hintOf(p) { return p.hint ? (T.DEBATE_HINTS || {})[p.hint] || "" : ""; }
     function go(n) {
       clearTimeout(autoT);
       i = Math.max(0, Math.min(P.length - 1, n));
@@ -657,11 +712,15 @@
       $("#phaseList").innerHTML = P.map((q, k) => `<li data-i="${k}" class="${k < i ? "done" : k === i ? "cur" : ""}"><span>${esc(q.label)}</span><span class="t">${fmt(q.sec)}</span></li>`).join("");
       timer.set(p.sec);
     }
-    // トピックが変わったとき：タイマーは止めずに、ヒントの文だけ入れ替える
+    // トピックが変わったとき：タイマーは止めずに、ヒントの文と3つの視点だけ入れ替える
     function refresh() {
       const hint = hintOf(P[i]);
       $("#dHint").textContent = hint;
       $("#dHint").classList.toggle("hidden", !hint);
+      // ① 立論メモを書く：トピックの3つの視点（資料2のメモの欄と同じ）
+      const vp = P[i].memo ? T.VIEWPOINTS || [] : [];
+      $("#dVp").innerHTML = vp.map(([en, ja], k) => `<li><b>${k + 1}. ${esc(en)}</b><span>${esc(ja)}</span></li>`).join("");
+      $("#dVp").classList.toggle("hidden", !vp.length);
     }
     $("#phaseList").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) go(+li.dataset.i); });
     $("#dToggle").onclick = () => { actx || beep(0); timer.toggle(); };
@@ -670,6 +729,280 @@
     $("#dReset").onclick = () => go(0);
     go(0);
     return { toggle: () => timer.toggle(), next: () => go(i + 1), prev: () => go(i - 1), refresh };
+  })();
+
+  /* ================= 2 ディベート：チーム分け（座席表） ================= */
+  // 座席表（クラスごとにサーバーに保存）を選び、欠席の席をタップして「チームを分ける」。
+  // 前後2人ずつの4人班（作れないところだけ3人班）になり、席ごとに G1-Yes などが決まる。生徒はタブレットで自分の席をタップする。
+  const SEAT = window.OREO_SEAT;
+  const teamsUI = (() => {
+    const TM = { maps: [], view: store.get("oreolive_monitor_dview") || "teams", mode: "absent", sel: null, t: null, edit: null, rev: 0, pending: false, doneAt: 0, saveT: null };
+    const present = (t) => t.seats.filter((x) => !t.absent.includes(x));
+    const hasSplit = (t) => !!(t && t.assign && Object.keys(t.assign).length);
+
+    function setView(v) {
+      TM.view = v === "timer" ? "timer" : "teams";
+      store.set("oreolive_monitor_dview", TM.view);
+      $$("#dView button").forEach((b) => b.classList.toggle("on", b.dataset.v === TM.view));
+      $("#dTeams").classList.toggle("hidden", TM.view !== "teams");
+      $("#dTimer").classList.toggle("hidden", TM.view !== "timer");
+      $("#dViewHint").textContent = TM.view === "teams"
+        ? "欠席の席をタップしてから「チームを分ける」。生徒はタブレットの Step 2 で、自分の席をタップします。"
+        : "Space でスタート／一時停止、→ で次へ進みます。";
+      render();
+    }
+    $("#dView").onclick = (e) => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); };
+    function setMode(m) {
+      TM.mode = m;
+      TM.sel = null;
+      if (m === "edit") startEdit();
+      else TM.edit = null;
+      render();
+    }
+    $("#tMode").onclick = (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.m); };
+
+    /* ---- 座席表（クラスごと） ---- */
+    async function loadMaps() {
+      try { TM.maps = (await API.seatmaps(S.key)).maps || []; } catch (e) { toast(e.message, true); }
+      renderMapSel();
+      render();
+    }
+    function renderMapSel() {
+      const cur = TM.t ? TM.t.map : "";
+      $("#tMapSel").innerHTML = `<option value="">座席表を選ぶ…</option>`
+        + TM.maps.map((m) => `<option value="${esc(m.name)}">${esc(m.name)}（${m.seats.length}席）</option>`).join("")
+        + `<option value="__new">＋ 新しい座席表を作る</option>`;
+      $("#tMapSel").value = TM.maps.some((m) => m.name === cur) ? cur : "";
+    }
+    $("#tMapSel").onchange = () => {
+      const v = $("#tMapSel").value;
+      if (v === "__new") {
+        TM.edit = { name: "", rows: C.SEAT_DEFAULT.rows, cols: C.SEAT_DEFAULT.cols, seats: new Set() };
+        TM.mode = "edit";
+        TM.sel = null;
+        renderMapSel();
+        editInputs(true);
+        return render();
+      }
+      const m = TM.maps.find((x) => x.name === v);
+      if (!m) return renderMapSel();
+      if (hasSplit(TM.t) && !confirm("座席表を変えると、今のチーム分けは消えます。変えますか？")) return renderMapSel();
+      useMap(m);
+    };
+    function useMap(m) {
+      const keep = TM.t && TM.t.map === m.name ? TM.t.absent.filter((x) => m.seats.includes(x)) : [];
+      TM.t = { map: m.name, rows: m.rows, cols: m.cols, seats: m.seats.slice(), absent: keep, assign: {} };
+      TM.mode = "absent";
+      TM.edit = null;
+      TM.sel = null;
+      renderMapSel();
+      save();
+      render();
+    }
+    function startEdit() {
+      const m = TM.t ? TM.maps.find((x) => x.name === TM.t.map) : null;
+      const base = m || (TM.t ? { name: TM.t.map, rows: TM.t.rows, cols: TM.t.cols, seats: TM.t.seats } : null);
+      TM.edit = base
+        ? { name: base.name, rows: base.rows, cols: base.cols, seats: new Set(base.seats) }
+        : { name: "", rows: C.SEAT_DEFAULT.rows, cols: C.SEAT_DEFAULT.cols, seats: new Set() };
+      editInputs(true);
+    }
+    function editInputs(withName) {
+      if (withName) $("#tName").value = TM.edit.name;
+      $("#tRows").value = TM.edit.rows;
+      $("#tCols").value = TM.edit.cols;
+    }
+    const clampSize = (v) => Math.max(1, Math.min(C.SEAT_MAX || 10, parseInt(v, 10) || 1));
+    $("#tRows").onchange = $("#tCols").onchange = () => {
+      if (!TM.edit) return;
+      TM.edit.rows = clampSize($("#tRows").value);
+      TM.edit.cols = clampSize($("#tCols").value);
+      TM.edit.seats = new Set([...TM.edit.seats].filter((id) => { const [r, c] = SEAT.rc(id); return r < TM.edit.rows && c < TM.edit.cols; }));
+      editInputs(false);
+      render();
+    };
+    $("#tName").oninput = () => { if (TM.edit) TM.edit.name = $("#tName").value; };
+    $("#tSaveMap").onclick = async () => {
+      const name = $("#tName").value.trim();
+      if (!name) return toast("座席表の名前を入れてください（例：2年4・5・6組）", true);
+      if (!TM.edit || !TM.edit.seats.size) return toast("机のある席をタップしてください", true);
+      if (hasSplit(TM.t) && !confirm("座席表を保存すると、今のチーム分けは消えます（欠席の印は残ります）。保存しますか？")) return;
+      try {
+        const res = await API.seatmap(S.key, { name, rows: TM.edit.rows, cols: TM.edit.cols, seats: [...TM.edit.seats] });
+        await loadMaps();
+        useMap(res.map);
+        toast(`座席表「${name}」を保存しました`);
+      } catch (e) { toast(e.message, true); }
+    };
+    $("#tDelMap").onclick = async () => {
+      const name = $("#tName").value.trim();
+      if (!TM.maps.some((m) => m.name === name)) return toast("まだ保存していない座席表です", true);
+      if (!confirm(`座席表「${name}」を消しますか？（ほかの授業でも使えなくなります）`)) return;
+      try { await API.seatmap(S.key, { name, remove: true }); await loadMaps(); toast("座席表を消しました"); }
+      catch (e) { toast(e.message, true); }
+    };
+
+    /* ---- 席をタップ ---- */
+    $("#tGrid").onclick = (e) => {
+      const b = e.target.closest("[data-seat]");
+      if (!b) return;
+      const id = b.dataset.seat;
+      if (TM.mode === "edit" && TM.edit) {
+        if (TM.edit.seats.has(id)) TM.edit.seats.delete(id); else TM.edit.seats.add(id);
+        return render();
+      }
+      const t = TM.t;
+      if (!t) return;
+      if (TM.mode === "absent") {
+        const k = t.absent.indexOf(id);
+        if (k >= 0) { t.absent.splice(k, 1); if (hasSplit(t)) join(t, id); } // 遅れて来た生徒：近くの3人班に入れる
+        else { t.absent.push(id); delete t.assign[id]; }
+        save();
+        return render();
+      }
+      // 入れかえ：2つの席をタップすると、班と立場を入れかえる
+      if (t.absent.includes(id)) return toast("欠席の席です。「欠席をタップ」で出席に戻せます", true);
+      if (!TM.sel || TM.sel === id) { TM.sel = TM.sel === id ? null : id; return render(); }
+      const a = t.assign[TM.sel], c = t.assign[id];
+      if (c) t.assign[TM.sel] = c; else delete t.assign[TM.sel];
+      if (a) t.assign[id] = a; else delete t.assign[id];
+      TM.sel = null;
+      save();
+      render();
+    };
+    // 出席に戻した席を、いちばん近い3人班に入れる（1人の側に入るので、その班は2対2になる）
+    function join(t, id) {
+      const [r, c] = SEAT.rc(id);
+      const groups = {};
+      Object.entries(t.assign).forEach(([s, [g, side]]) => (groups[g] = groups[g] || []).push([s, side]));
+      let best = null;
+      for (const [g, list] of Object.entries(groups)) {
+        if (list.length !== 3) continue;
+        const d = Math.min(...list.map(([s]) => { const [rr, cc] = SEAT.rc(s); return Math.abs(rr - r) + Math.abs(cc - c); }));
+        if (!best || d < best.d) best = { g: +g, d, side: list.filter((x) => x[1] === "yes").length === 1 ? "yes" : "no" };
+      }
+      if (best) { t.assign[id] = [best.g, best.side]; toast(`この席を G${best.g} の ${best.side === "yes" ? "Yes" : "No"} 側に入れました`); }
+      else toast("3人班がないので、この席の班は決まっていません。「入れかえ」で動かすか、チームを分け直してください", true);
+    }
+
+    $("#tSplit").onclick = () => {
+      const t = TM.t;
+      if (!t) return toast("先に座席表を選んでください", true);
+      const p = present(t);
+      if (p.length < 3) return toast("出席の席が少なすぎます", true);
+      if (hasSplit(t) && !confirm("チームを分け直しますか？\n（生徒が選んだ席はそのままで、班と立場が新しくなります）")) return;
+      t.assign = SEAT.split(t.rows, t.cols, p);
+      TM.mode = "swap";
+      TM.sel = null;
+      TM.edit = null;
+      save();
+      render();
+    };
+    $("#tFlip").onclick = () => {
+      const t = TM.t;
+      if (!hasSplit(t)) return;
+      Object.values(t.assign).forEach((a) => (a[1] = a[1] === "yes" ? "no" : "yes"));
+      save();
+      render();
+    };
+    $("#tClearTeams").onclick = () => {
+      const t = TM.t;
+      if (!hasSplit(t) || !confirm("チーム分けを消しますか？（欠席の印は残ります）")) return;
+      t.assign = {};
+      TM.mode = "absent";
+      save();
+      render();
+    };
+
+    /* ---- 保存（少し待ってまとめて送る。生徒の画面には5秒以内に出る） ---- */
+    function save() {
+      const rev = ++TM.rev;
+      TM.pending = true;
+      $("#tSaved").textContent = "保存しています…";
+      clearTimeout(TM.saveT);
+      TM.saveT = setTimeout(async () => {
+        try {
+          const res = await API.teams(S.s, S.key, TM.t);
+          if (rev === TM.rev) {
+            if (TM.t && res.teams) TM.t.at = res.teams.at;
+            $("#tSaved").textContent = "保存しました（生徒の画面にも出ます）";
+          }
+        } catch (e) {
+          $("#tSaved").textContent = "⚠ 保存できませんでした";
+          toast(e.message, true);
+        } finally {
+          if (rev === TM.rev) { TM.pending = false; TM.doneAt = Date.now(); }
+        }
+      }, 400);
+    }
+    // ポーリングで届いたチーム分け（開き直したとき・別の端末で変えたとき）。
+    // こちらで変えて保存するまでの間と、保存より前に出たポーリングの答えでは上書きしない
+    function fromServer(t, t0) {
+      if (TM.pending || TM.mode === "edit" || (t0 || 0) < (TM.doneAt || 0)) return;
+      const cur = TM.t;
+      if (!t) {
+        if (cur && cur.at) { TM.t = null; renderMapSel(); render(); } // データの削除などで消えた
+        return;
+      }
+      if (!cur || (t.at || 0) > (cur.at || 0)) {
+        TM.t = { map: t.map || "", rows: t.rows, cols: t.cols, seats: t.seats || [], absent: t.absent || [], assign: t.assign || {}, at: t.at };
+        renderMapSel();
+        render();
+      }
+    }
+
+    /* ---- 描く ---- */
+    function render() {
+      if (tab !== "debate" || TM.view !== "teams") return;
+      $$("#tMode button").forEach((b) => b.classList.toggle("on", b.dataset.m === TM.mode));
+      const editing = TM.mode === "edit" && TM.edit;
+      $("#tEdit").classList.toggle("hidden", !editing);
+      const t = TM.t;
+      const split = hasSplit(t);
+      $("#tSplit").disabled = !t || !!editing;
+      $("#tSplit").textContent = split ? "チームを分け直す" : "チームを分ける";
+      $("#tFlip").classList.toggle("hidden", !split || !!editing);
+      $("#tClearTeams").classList.toggle("hidden", !split || !!editing);
+      if (editing) {
+        $("#tInfo").innerHTML = `机のある席 <b>${TM.edit.seats.size}</b> 席 <span class="muted">— 席をタップすると「机あり／なし」が切り替わります</span>`;
+        $("#tGrid").innerHTML = SEAT.html(TM.edit.rows, TM.edit.cols, (id) => ({ cls: TM.edit.seats.has(id) ? "used" : "gap", html: "" }));
+        return;
+      }
+      if (!t) {
+        $("#tInfo").innerHTML = TM.maps.length
+          ? "上で、このクラスの座席表を選んでください。"
+          : "まず「座席表を作る・直す」で、このクラスの座席表を作ります（1回作れば、次の授業でも使えます）。";
+        $("#tGrid").innerHTML = "";
+        return;
+      }
+      const p = present(t);
+      const chosen = new Set(D.members.filter((m) => m.grp).map((m) => m.seat));
+      if (split) {
+        const sizes = {};
+        Object.values(t.assign).forEach(([g]) => (sizes[g] = (sizes[g] || 0) + 1));
+        const v = Object.values(sizes);
+        const n4 = v.filter((n) => n === 4).length, n3 = v.filter((n) => n === 3).length, other = v.length - n4 - n3;
+        const seats = Object.keys(t.assign);
+        $("#tInfo").innerHTML = `出席 ${p.length}人 → 4人班 ${n4}・3人班 ${n3}${other ? `・そのほか ${other}` : ""}　／　席を選んだ生徒 <b>${seats.filter((s) => chosen.has(s)).length}</b> / ${seats.length}`
+          + ` <span class="muted">${TM.mode === "swap" ? "（2つの席を続けてタップすると、班と立場を入れかえます）" : "（欠席の席をタップ。遅れて来た生徒の席は、近くの3人班に入ります）"}</span>`;
+      } else {
+        $("#tInfo").innerHTML = `出席 <b>${p.length}</b>人（欠席 ${t.absent.length}）<span class="muted">　— 欠席の席をタップしてから「チームを分ける」を押します</span>`;
+      }
+      $("#tGrid").innerHTML = SEAT.html(t.rows, t.cols, (id) => {
+        if (!t.seats.includes(id)) return null;
+        if (t.absent.includes(id)) return { cls: "absent", html: "欠席" };
+        const a = t.assign[id];
+        const sel = TM.sel === id ? " sel" : "";
+        if (!a) return { cls: sel, html: split ? "<small>班なし</small>" : "" };
+        return { cls: a[1] + sel, html: `<b>G${a[0]}</b><small>${a[1] === "yes" ? "Yes" : "No"}</small>${chosen.has(id) ? '<span class="ck">✓</span>' : ""}` };
+      });
+    }
+    setView(TM.view);
+    return {
+      render, loadMaps, fromServer,
+      get view() { return TM.view; },
+      reset() { TM.t = null; TM.sel = null; renderMapSel(); render(); },
+    };
   })();
 
   /* ================= 3 ライティング ================= */
@@ -735,12 +1068,14 @@
     $("#wUnit").classList.toggle("hidden", post);
     $("#wAvg").textContent = list.length ? Math.round(list.reduce((a, w) => a + (w.words || 0), 0) / list.length) : 0;
     $("#wFb").textContent = list.filter((w) => w.feedback).length;
-    const members = {}, done = {};
-    if (post) D.votes.forEach((v) => v.grp && (members[v.grp] = (members[v.grp] || 0) + 1));
-    list.forEach((w) => w.grp && (done[w.grp] = (done[w.grp] || 0) + 1));
-    const hasGroups = Object.keys(members).length || Object.keys(done).length;
-    const gs = Array.from({ length: C.GROUPS }, (_, k) => String(k + 1));
-    $("#wGroups").innerHTML = hasGroups ? gs.map((g) => { const m = Math.max(members[g] || 0, done[g] || 0); return `<div class="gchip ${m && done[g] >= m ? "full" : ""}">G${g}<b>${done[g] || 0}/${m || "–"}</b></div>`; }).join("") : "";
+    // 班ごとの提出（授業の後だけ）：班は、生徒がディベートで選んだ席から決まる
+    const members = {}, done = {}, grpOf = {};
+    if (post) {
+      D.members.forEach((m) => { if (m.grp) { grpOf[m.student] = m.grp; members[m.grp] = (members[m.grp] || 0) + 1; } });
+      list.forEach((w) => { const g = grpOf[w.student] || w.grp; if (g) done[g] = (done[g] || 0) + 1; });
+    }
+    const gs = [...new Set([...Object.keys(members), ...Object.keys(done)])].sort((a, b) => a - b);
+    $("#wGroups").innerHTML = gs.map((g) => { const m = Math.max(members[g] || 0, done[g] || 0); return `<div class="gchip ${m && done[g] >= m ? "full" : ""}">G${g}<b>${done[g] || 0}/${m || "–"}</b></div>`; }).join("");
     const box = $("#wStance");
     box.classList.toggle("hidden", !$("#wShowStance").checked);
     box.innerHTML = stack(counts(list, "stance"), post ? ["yes", "no"] : ["yes", "no", "unsure"]);
@@ -885,10 +1220,10 @@
   $("#btnClear").onclick = async () => {
     const b = $("#btnClear");
     if (Date.now() - clearArmed > 4000) { clearArmed = Date.now(); b.textContent = "本当に削除する場合はもう一度押す"; setTimeout(() => (b.textContent = "このセッションのデータを削除"), 4000); return; }
-    try { await API.clear(S.s, S.key); D.writings.clear(); D.since = 0; D.summary = null; D.votes = []; toast("削除しました"); b.textContent = "このセッションのデータを削除"; poll(); }
+    try { await API.clear(S.s, S.key); D.writings.clear(); D.since = 0; D.summary = null; D.votes = []; D.members = []; teamsUI.reset(); toast("削除しました"); b.textContent = "このセッションのデータを削除"; poll(); }
     catch (e) { toast(e.message, true); }
   };
-  $("#btnSeed").onclick = async () => { await API.seed(S.s); D.writings.clear(); D.since = 0; toast("サンプルデータを入れました"); poll(); };
+  $("#btnSeed").onclick = async () => { await API.seed(S.s); D.writings.clear(); D.since = 0; teamsUI.reset(); teamsUI.loadMaps(); toast("サンプルデータを入れました"); poll(); };
 
   if ($("#inS").value && $("#inK").value && params.get("auto") === "1") openSession();
 })();
