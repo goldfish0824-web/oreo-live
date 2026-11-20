@@ -22,14 +22,16 @@ window.OREO_CONFIG = {
   WRITE_CHIPS: ["First of all, ", "This is because ", "For example, ", "In addition, ", "However, ", "Therefore, "],
 
   // ミニ・ディベートの進行（モニターのタイマー）。どのトピックでも共通
+  // 4人班が基本（Yes：A1・A2、No：N1・N2）。4人にならない班は3人にし、1人の側の生徒が立論と反論の2役をする。
+  // Judge は置かない（ディベートは1回だけなので、全員が話す役を持つ。先生の判断。2026-11-20）
   DEBATE_PHASES: [
-    { label: "① 作戦タイム", who: "Yes・No のペアで理由を2つ選ぶ", sec: 120 },
-    { label: "② Yes側 立論", who: "A1（3人班：Yes）", sec: 60, side: "yes" },
-    { label: "③ No側 立論", who: "N1（3人班：No）", sec: 60, side: "no" },
-    { label: "④ 反論準備", who: "ペアで相談", sec: 60 },
-    { label: "⑤ No側 反論", who: "N2（3人班：No）", sec: 60, side: "no" },
-    { label: "⑥ Yes側 反論", who: "A2（3人班：Yes）", sec: 60, side: "yes" },
-    { label: "⑦ フリートーク", who: "立場を離れて本音で／Judgeが講評", sec: 120 },
+    { label: "① 作戦タイム", who: "ペアで理由を2つ選ぶ（1人の側は1人で）", sec: 120 },
+    { label: "② Yes側 立論", who: "A1", sec: 60, side: "yes" },
+    { label: "③ No側 立論", who: "N1", sec: 60, side: "no" },
+    { label: "④ 反論準備", who: "ペアで相談（1人の側は1人で）", sec: 60 },
+    { label: "⑤ No側 反論", who: "N2（No が1人の班は、その人がもう一度）", sec: 60, side: "no" },
+    { label: "⑥ Yes側 反論", who: "A2（Yes が1人の班は、その人がもう一度）", sec: 60, side: "yes" },
+    { label: "⑦ フリートーク", who: "立場を離れて本音で。最後に1人1文ずつ（Honestly, I think ...）", sec: 120 },
   ],
 
   /* トピックごとの文言。
