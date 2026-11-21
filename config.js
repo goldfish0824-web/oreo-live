@@ -41,12 +41,12 @@ window.OREO_CONFIG = {
   SEAT_DEFAULT: { rows: 6, cols: 6 },
 
   // 先生からのスタンプ（授業者と参観の先生が、先生用の一覧・参観者用ページで押す）。
-  // 生徒の画面には「先生から」とだけ届く（誰が押したかは出さない）。1人の先生が1人の生徒に、同じスタンプは1回まで。もう一度押すと取り消し。
-  // id は worker/worker.js の STAMPS とそろえる
+  // 生徒の画面には「〇〇先生から」と、押した先生の名前つきで届く（先生は最初に押すときに名前を入れる）。1人の先生が1人の生徒に、同じスタンプは1回まで。もう一度押すと取り消し。
+  // id は worker/worker.js の STAMPS とそろえる。はんこの絵（インクの色・絵）は stamp.js。lines は、はんこの中で2行に分けるときの分け方
   STAMPS: [
     { id: "clear", icon: "💬", ja: "伝わる英語！", en: "Clear English!" },
     { id: "reasons", icon: "💡", ja: "理由がいいね", en: "Good reasons!" },
-    { id: "growth", icon: "🌱", ja: "成長が感じられます", en: "Great progress!" },
+    { id: "growth", icon: "🌱", ja: "成長が感じられます", en: "Great progress!", lines: ["成長が", "感じられます"] },
   ],
 
   /* トピックごとの文言。

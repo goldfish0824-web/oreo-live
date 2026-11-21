@@ -57,24 +57,32 @@
   .teacher-flag { background: var(--fix); color: #fff; font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
   .badge.team-yes { background: var(--yes-soft); color: var(--yes-ink); }
   .badge.team-no { background: var(--no-soft); color: var(--no-ink); }
-  /* 先生からのスタンプ（押すと生徒の画面に「先生から」として届く。もう一度押すと取り消し） */
+  /* 先生からのスタンプ（押すと生徒の画面に「〇〇先生から」と、はんこの絵で届く。もう一度押すと取り消し。絵は stamp.js） */
   .stamps { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px dashed var(--line); padding-top: 10px; }
   .stamps .lbl { font-size: 13px; color: var(--ink-3); font-weight: 700; margin-right: 2px; }
-  .stp { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 13px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font: inherit; font-weight: 800; font-size: 14px; color: var(--ink-2); cursor: pointer; transition: transform 0.1s, background 0.15s; }
+  .stp { --stamp-ink: var(--ink-3); display: inline-flex; align-items: center; gap: 7px; min-height: 46px; padding: 4px 14px 4px 6px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font: inherit; font-weight: 800; font-size: 14px; color: var(--ink-3); cursor: pointer; transition: transform 0.1s, background 0.15s, border-color 0.15s; }
   .stp:active { transform: scale(0.96); }
-  .stp .ic { font-size: 18px; }
   .stp b { font-family: var(--font-en); color: var(--ink-3); min-width: 1ch; }
-  .stp.on { background: var(--pop-soft); border-color: var(--pop); color: var(--ink); }
+  .stp.on { background: #fffaf0; border-color: var(--stamp-ink); box-shadow: inset 0 0 0 1px var(--stamp-ink); color: var(--ink); }
   .stp.on b { color: var(--ink); }
   .stp:disabled { opacity: 0.6; }
   .stamps .none { font-size: 12.5px; color: var(--fix); font-weight: 700; }
+  .who-line { width: 100%; display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 13px; color: var(--ink-2); font-weight: 700; }
+  .who-line > span { display: inline-flex; align-items: center; gap: 3px; }
+  /* スタンプに出す名前を決める */
+  .dlg { position: fixed; inset: 0; z-index: 50; background: rgba(21, 23, 30, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .dlg-box { width: min(420px, 100%); display: flex; flex-direction: column; gap: 12px; padding: 22px; box-shadow: var(--shadow-lg); }
+  .dlg-box h3 { margin: 0; font-size: 18px; }
+  .dlg-box p { margin: 0; }
+  .name-in { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; }
+  .name-in input { flex: 1; min-width: 0; font-size: 18px; }
+  .name-prev { display: flex; align-items: center; gap: 12px; background: #fffdf6; border: 1px dashed var(--line); border-radius: 14px; padding: 6px 12px; font-weight: 800; color: var(--ink-2); }
   @media (max-width: 520px) {
     .filters { gap: 6px; }
     .filters .seg button { padding: 5px 10px; font-size: 13px; }
     .stamps { gap: 6px; }
     .stamps .lbl { width: 100%; }
-    .stp { min-height: 36px; padding: 4px 10px; font-size: 13px; gap: 4px; }
-    .stp .ic { font-size: 16px; }
+    .stp { min-height: 40px; padding: 3px 10px 3px 4px; font-size: 13px; gap: 5px; }
   }
 </style>
 </head>
@@ -106,6 +114,7 @@
       <div class="seg" id="fTr">
         <button data-tr="on" class="on">和訳あり</button><button data-tr="off">英語のみ</button>
       </div>
+      <div class="seg"><button id="btnName" title="スタンプといっしょに生徒の画面に出る名前">✎ スタンプの名前</button></div>
     </div>
   </header>
   <main>
@@ -117,7 +126,7 @@
         <li>書いた量や、英語の表現がどう変わったか。</li>
       </ol>
       <p class="small muted" style="margin:4px 0 0">英文の下の日本語は、AI による参考訳です。生徒の英語の誤りは直さずに訳しています（生徒の画面には出ません）。上の「英語のみ」で消せます。「AI のコメント・問いかけ・添削を見る」を押すと、生徒の画面に届いた AI のコメントと問いかけ、添削後の英文が読めます。</p>
-      <p class="small muted" style="margin:4px 0 0">各英文の下のスタンプ（<span id="gStamps"></span>）を押すと、生徒の画面に「先生から」として届きます（どの先生が押したかは出ません）。何人の生徒にでも押せます。もう一度押すと取り消せます。まだスタンプのない生徒にも届くよう、上の「スタンプが少ない順」で並べ替えられます。</p>
+      <p class="small muted" style="margin:4px 0 0">各英文の下のスタンプ（<span id="gStamps"></span>）を押すと、生徒の画面に「〇〇先生から」と、はんこの絵で届きます。最初に押すときに、生徒の画面に出すお名前（名字）を入れてください（いまの名前：<b id="gName">まだ決めていません</b>。上の「✎」で変えられます）。何人の生徒にでも押せます。もう一度押すと取り消せます。まだスタンプのない生徒にも届くよう、上の「スタンプが少ない順」で並べ替えられます。</p>
       <p class="small muted" style="margin:4px 0 0">このページのパスワードは、校外の方にお伝えにならないようお願いします。</p>
     </details>
     <div class="note hidden" id="teacherNote" style="margin-bottom:16px;background:var(--fix-soft);border:1px solid #f0c6c1;border-radius:14px;padding:11px 15px;font-size:14px">
@@ -127,7 +136,19 @@
   </main>
 </div>
 
+<!-- スタンプに出す名前（この端末に覚えておく） -->
+<div id="nameDlg" class="dlg hidden" role="dialog" aria-modal="true" aria-labelledby="nameDlgTitle">
+  <div class="card dlg-box">
+    <h3 id="nameDlgTitle">スタンプに出すお名前</h3>
+    <p class="small muted">生徒の画面に「<b id="namePrevText">〇〇</b>先生から」と、スタンプといっしょに出ます。名字だけでかまいません。この端末に覚えておきます。</p>
+    <div class="name-in"><input id="inName" type="text" maxlength="12" placeholder="例：田中" autocomplete="off" aria-label="お名前"><span>先生</span></div>
+    <div class="name-prev" id="namePrev"></div>
+    <div class="row"><button class="btn btn-ghost" id="nameCancel">やめる</button><span class="spacer"></span><button class="btn btn-primary" id="nameOk">決める</button></div>
+  </div>
+</div>
+
 <script src="config.js"></script>
+<script src="stamp.js"></script>
 <script src="api.js"></script>
 <script>
 (function () {
@@ -163,7 +184,7 @@
     if (API.demo && !S.key && S.s) S.key = API.demoObserverKey;
   }
   const D = { since: 0, writings: new Map(), votes: [], members: [], stamps: {}, loaded: false };
-  // この端末の印（スタンプを、だれが押したか見分けるため。名前は使わない）。保存できないブラウザでは、開いている間だけ
+  // この端末の印（自分が押したスタンプを見分けて取り消せるようにするため。生徒には出さない）。保存できないブラウザでは、開いている間だけ
   const DEV = (() => {
     let id = store.get("oreolive_dev");
     if (typeof id !== "string" || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
@@ -175,7 +196,12 @@
     return id;
   })();
   const STAMPS = C.STAMPS || [];
+  const STAMP = window.OREO_STAMP;
   $("#gStamps").textContent = STAMPS.map((x) => `${x.icon} ${x.ja}`).join("　");
+  // スタンプに出す先生の名前（この端末に覚えておく。「先生」は画面で付ける）
+  const cleanName = (v) => String(v || "").replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim().replace(/\s*(先生|せんせい|センセイ)$/, "").trim().slice(0, 12);
+  let NAME = cleanName(store.get("oreolive_stamp_name"));
+  let justPressed = null; // 押した直後のスタンプだけ「ポン」と動かす
   const stampLock = {}; // 押した直後の生徒は、古いポーリングの答えで上書きしない
   let lastStampAt = 0, lastOrder = [];
   let T = window.OREO_TOPIC();
@@ -267,7 +293,7 @@
     for (const x of m.values()) if (team[x.student]) { x.grp = team[x.student].grp; x.side = team[x.student].side; }
     return [...m.values()];
   }
-  const stampsOf = (st) => D.stamps[st] || { counts: {}, mine: [] };
+  const stampsOf = (st) => D.stamps[st] || { counts: {}, mine: [], who: [] };
   const stampSum = (st) => Object.values(stampsOf(st).counts || {}).reduce((a, n) => a + (n || 0), 0);
   const byStudent = (a, b) => a.student.localeCompare(b.student, "ja", { numeric: true });
 
@@ -360,31 +386,39 @@
   function stampBar(st) {
     const s = stampsOf(st);
     const mine = new Set(s.mine || []);
+    const who = (s.who || []).filter((w) => w.stamps && w.stamps.length);
     return `<span class="lbl">スタンプ</span>`
       + STAMPS.map((k) => {
         const n = (s.counts || {})[k.id] || 0;
-        return `<button type="button" class="stp ${mine.has(k.id) ? "on" : ""}" data-student="${esc(st)}" data-stamp="${k.id}" aria-pressed="${mine.has(k.id)}" title="${mine.has(k.id) ? "もう一度押すと取り消します" : "押すと生徒に届きます"}"><span class="ic">${k.icon}</span>${esc(k.ja)}<b>${n || ""}</b></button>`;
+        const on = mine.has(k.id);
+        const pic = STAMP.html(k.id, { mini: true, ghost: !on, size: 36, seed: st + k.id, pressed: on && justPressed === `${st}|${k.id}`, title: "" });
+        return `<button type="button" class="stp ${on ? "on" : ""}" style="--stamp-ink:${STAMP.ink[k.id]}" data-student="${esc(st)}" data-stamp="${k.id}" aria-pressed="${on}" title="${on ? "もう一度押すと取り消します" : "押すと生徒に届きます"}">${pic}${esc(k.ja)}<b>${n || ""}</b></button>`;
       }).join("")
-      + (stampSum(st) ? "" : `<span class="none">まだスタンプがありません</span>`);
+      + (stampSum(st) ? "" : `<span class="none">まだスタンプがありません</span>`)
+      // だれが押したか（押した順）
+      + (who.length ? `<div class="who-line">${who.map((w) => `<span>${esc(w.who || "")}先生${w.stamps.map((id) => STAMP.html(id, { mini: true, ink: false, size: 18, seed: st + id + w.who, title: "" })).join("")}</span>`).join("")}</div>` : "");
   }
   $("#list").addEventListener("click", async (e) => {
     const b = e.target.closest(".stp");
     if (!b || b.disabled) return;
     const st = b.dataset.student, k = b.dataset.stamp;
+    const on = !(stampsOf(st).mine || []).includes(k);
+    // はじめて押すときは、生徒の画面に出す名前を決めてもらう
+    if (on && !NAME && !(await askName())) return;
     const cur = stampsOf(st);
-    const on = !(cur.mine || []).includes(k);
     // 先に画面を変えてから送る（届かなかったときは元に戻す）
     const before = D.stamps[st];
     const counts = Object.assign({}, cur.counts);
     counts[k] = Math.max(0, (counts[k] || 0) + (on ? 1 : -1));
-    D.stamps[st] = { counts, mine: on ? [...(cur.mine || []), k] : (cur.mine || []).filter((x) => x !== k) };
+    D.stamps[st] = { counts, mine: on ? [...(cur.mine || []), k] : (cur.mine || []).filter((x) => x !== k), who: cur.who || [] };
     stampLock[st] = Date.now() + 60000;
     lastStampAt = Date.now();
+    if (on) justPressed = `${st}|${k}`;
     redrawStamps(st);
     try {
-      const res = await API.stamp(S.s, S.key, { student: st, stamp: k, on, dev: DEV });
-      D.stamps[st] = { counts: res.counts, mine: res.mine };
-      if (on) toast(`${STAMPS.find((x) => x.id === k).icon} ${st.replace("-", "組")}番に届けました`);
+      const res = await API.stamp(S.s, S.key, { student: st, stamp: k, on, dev: DEV, name: NAME });
+      D.stamps[st] = { counts: res.counts, mine: res.mine, who: res.who || [] };
+      if (on) toast(`${STAMPS.find((x) => x.id === k).icon} ${st.replace("-", "組")}番に「${NAME}先生から」で届けました`);
     } catch (err) {
       if (before) D.stamps[st] = before; else delete D.stamps[st];
       toast(err.message, true);
@@ -395,7 +429,58 @@
   });
   function redrawStamps(st) {
     $$(`[data-stamps]`).forEach((el) => { if (el.dataset.stamps === st) el.innerHTML = stampBar(st); });
+    justPressed = null;
   }
+
+  /* ---------- スタンプに出す名前 ---------- */
+  function showName() {
+    $("#btnName").textContent = NAME ? `✎ ${NAME}先生` : "✎ スタンプの名前";
+    $("#gName").textContent = NAME ? `${NAME}先生` : "まだ決めていません";
+  }
+  showName();
+  function namePreview() {
+    const v = cleanName($("#inName").value);
+    $("#namePrevText").textContent = v || "〇〇";
+    $("#namePrev").innerHTML = v
+      ? `${STAMP.html("clear", { who: v, seed: "preview", size: 76 })}<span>生徒の画面では、このように<br>「${esc(v)}先生から」と届きます</span>`
+      : `<span class="muted">お名前を入れると、ここにスタンプの見本が出ます</span>`;
+  }
+  let nameDone = null;
+  // 名前を決めてもらう（決めたら名前、やめたら空）
+  function askName() {
+    return new Promise((resolve) => {
+      nameDone = resolve;
+      $("#inName").value = NAME;
+      namePreview();
+      $("#nameDlg").classList.remove("hidden");
+      setTimeout(() => $("#inName").focus(), 30);
+    });
+  }
+  function closeName(v) {
+    $("#nameDlg").classList.add("hidden");
+    const done = nameDone;
+    nameDone = null;
+    if (done) done(v);
+  }
+  $("#inName").addEventListener("input", namePreview);
+  $("#inName").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) $("#nameOk").click(); if (e.key === "Escape") closeName(""); });
+  $("#nameCancel").onclick = () => closeName("");
+  $("#nameDlg").addEventListener("click", (e) => { if (e.target.id === "nameDlg") closeName(""); });
+  $("#nameOk").onclick = async () => {
+    const v = cleanName($("#inName").value);
+    if (!v) return toast("お名前を入れてください", true);
+    const changed = v !== NAME;
+    NAME = v;
+    store.set("oreolive_stamp_name", v);
+    showName();
+    closeName(v);
+    // このセッションで、この端末がもう押したスタンプがあれば、その名前もそろえる
+    if (changed && S.key && Object.values(D.stamps).some((x) => x && (x.mine || []).length)) {
+      try { await API.stamp(S.s, S.key, { dev: DEV, rename: true, name: v }); await poll(); toast(`押したスタンプの名前を「${v}先生」にしました`); }
+      catch (err) { toast(err.message, true); }
+    }
+  };
+  $("#btnName").onclick = () => askName();
 
 })();
 </script>

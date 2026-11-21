@@ -62,12 +62,13 @@
   .team-you p small { display: block; color: var(--ink-3); margin-top: 2px; }
   #seatGrid .seatgrid { --seat-h: 46px; gap: 6px; }
   #seatGrid .seat.absent { opacity: 0.5; }
-  /* 先生からのスタンプ */
-  .stamp-card h2 { margin: 0 0 10px; }
-  .stamp-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .stamp-row .stamp { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--surface-2); font-weight: 800; }
-  .stamp-row .stamp .ic { font-size: 22px; }
-  .stamp-row .stamp b { font-family: var(--font-en); color: var(--ink-3); }
+  /* 先生からのスタンプ（押した先生ごとに、はんこの絵を並べる。絵は stamp.js） */
+  .stamp-card { background: #fffdf6; }
+  .stamp-card h2 { margin: 0 0 8px; }
+  .stamp-groups { display: flex; flex-wrap: wrap; gap: 12px 30px; }
+  .stamp-group { display: flex; flex-direction: column; gap: 2px; }
+  .stamp-from { font-weight: 800; font-size: 15px; color: var(--ink-2); }
+  .stamp-row { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 4px 2px; }
 
   /* 次へ進むボタン（生徒が自分で順番に進む） */
   .next-btn { width: 100%; min-height: 56px; font-size: 17px; }
@@ -276,10 +277,10 @@
   <section id="v-done" class="stack hidden">
     <div class="done-head"><h2>提出しました！</h2><span class="badge" id="doneRound"></span></div>
     <p class="muted" id="doneLead" style="margin:0"></p>
-    <!-- 先生からのスタンプ（だれが押したかは出さない） -->
+    <!-- 先生からのスタンプ（押した先生ごとに「〇〇先生から」） -->
     <div class="card stamp-card hidden" id="stampCard">
       <h2>🎁 先生からのスタンプ</h2>
-      <div class="stamp-row" id="stampRow"></div>
+      <div class="stamp-groups" id="stampRow"></div>
     </div>
     <div data-writings></div>
     <!-- 読む前の英文を出した後：研究授業の部が開くまで、ここで止まる -->
@@ -303,6 +304,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="stamp.js"></script>
 <script src="api.js"></script>
 <script>
 (function () {
@@ -476,14 +478,28 @@
     }
   }
 
-  /* ---------- 先生からのスタンプ（提出の後の画面。だれが押したかは出さない） ---------- */
-  const stampTotal = () => Object.values((st.mine && st.mine.stamps) || {}).reduce((a, n) => a + (n || 0), 0);
+  /* ---------- 先生からのスタンプ（提出の後の画面。押した先生ごとに「〇〇先生から」と、はんこの絵で出す） ---------- */
+  const STAMP = window.OREO_STAMP;
+  const stampList = () => ((st.mine && Array.isArray(st.mine.stamps) && st.mine.stamps) || []).filter((x) => x && x.stamp);
+  const stampKey = (x) => `${x.stamp}|${x.who || ""}|${x.at || 0}`;
+  const stampSeen = new Set();
+  let stampFirst = true;
+  // 描き直して、この画面を開いてから新しく届いたスタンプを返す（それだけ「ポン」と押す動きをつける）
   function renderStamps() {
-    const n = (st.mine && st.mine.stamps) || {};
-    st.stampSig = JSON.stringify(n);
-    const got = (C.STAMPS || []).filter((x) => n[x.id] > 0);
-    $("#stampCard").classList.toggle("hidden", !got.length);
-    $("#stampRow").innerHTML = got.map((x) => `<span class="stamp"><span class="ic">${x.icon}</span>${esc(x.ja)}${n[x.id] > 1 ? `<b>×${n[x.id]}</b>` : ""}</span>`).join("");
+    const list = stampList();
+    st.stampSig = JSON.stringify(list);
+    const fresh = stampFirst ? [] : list.filter((x) => !stampSeen.has(stampKey(x)));
+    const isNew = new Set(fresh.map(stampKey));
+    list.forEach((x) => stampSeen.add(stampKey(x)));
+    stampFirst = false;
+    $("#stampCard").classList.toggle("hidden", !list.length);
+    const by = new Map();
+    list.forEach((x) => { const w = x.who || ""; if (!by.has(w)) by.set(w, []); by.get(w).push(x); });
+    $("#stampRow").innerHTML = [...by].map(([who, xs]) => `<div class="stamp-group">
+        <div class="stamp-from">${who ? `${esc(who)}先生から` : "先生から"}</div>
+        <div class="stamp-row">${xs.map((x) => STAMP.html(x.stamp, { who, seed: stampKey(x), size: 116, pressed: isNew.has(stampKey(x)) })).join("")}</div>
+      </div>`).join("");
+    return fresh;
   }
 
   /* ---------- ログイン ---------- */
@@ -548,7 +564,6 @@
       const res = await API.state(st.s, st.cls, st.num, st.token);
       if (res.topic && res.topic !== st.topic) applyTopic(res.topic);
       const changed = !!res.lesson !== st.lesson; // 先生が研究授業の部を開いた（または読む前に戻した）
-      const stampsBefore = stampTotal();
       st.mine = res.mine || st.mine;
       st.teams = res.teams || null;
       st.phase = res.phase;
@@ -558,9 +573,12 @@
       else if (st.view === "wait") { if (teamSig() !== st.teamSig) renderTeam(); }
       else if (st.view === "done") {
         if (fbSignature() !== st.fbSig) rerenderWritings();
-        if (JSON.stringify(st.mine.stamps || {}) !== st.stampSig) {
-          renderStamps();
-          if (stampTotal() > stampsBefore) toast("🎁 先生からスタンプが届きました！");
+        if (JSON.stringify(stampList()) !== st.stampSig) {
+          const fresh = renderStamps();
+          if (fresh.length) {
+            const names = [...new Set(fresh.map((x) => (x.who ? `${x.who}先生` : "先生")))].join("・");
+            toast(`🎁 ${names}からスタンプが届きました！`);
+          }
         }
       }
     } catch (e) { authLost(e); /* 一時的な通信エラーは無視して次回再試行 */ }

@@ -163,6 +163,18 @@ input[type="checkbox"] { accent-color: var(--cookie); }
 /* 画面の切り替わりを、ふわっと見せる */
 @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 main > section:not(.hidden), .pane:not(.hidden) { animation: riseIn 0.32s ease both; }
+/* 先生からのスタンプの絵（stamp.js）。インクで押したはんこのように、少し傾けて紙になじませる */
+:root { --stamp-font: "Hiragino Maru Gothic ProN", "Hiragino Maru Gothic Pro", "HG丸ｺﾞｼｯｸM-PRO", "BIZ UDPGothic", var(--font); }
+.oreo-stamp { display: inline-block; flex: none; transform: rotate(var(--r, 0deg)); mix-blend-mode: multiply; }
+.oreo-stamp svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.oreo-stamp.ghost { opacity: 0.6; mix-blend-mode: normal; }
+.oreo-stamp.pressed { animation: stampPress 0.5s cubic-bezier(0.25, 0.8, 0.35, 1) both; }
+@keyframes stampPress {
+  0% { opacity: 0; transform: scale(1.9) rotate(var(--r, 0deg)); }
+  50% { opacity: 1; transform: scale(0.88) rotate(var(--r, 0deg)); }
+  72% { transform: scale(1.05) rotate(var(--r, 0deg)); }
+  100% { transform: scale(1) rotate(var(--r, 0deg)); }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 /* 座席表（ディベートのチーム分け。モニターと生徒画面で共通）。2列ごとに通路をあける */

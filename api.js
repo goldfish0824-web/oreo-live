@@ -216,12 +216,21 @@
     return a ? { seat, grp: String(a[0]), side: a[1] } : null;
   };
   const seatOf = (db, se, st) => (db.members.find((x) => x.session === se.code && x.student === st) || {}).seat;
-  // スタンプ：{ counts: { clear: 2, … }, mine: [...] }
+  // スタンプ（Worker と同じ形）。参観者用：{ counts: { clear: 2, … }, mine: [...], who: [{ who: "田中", stamps: [...] }] }
   const STAMP_IDS = (C.STAMPS || []).map((x) => x.id);
-  const stampsOut = (list, dev) => ({
-    counts: Object.fromEntries(STAMP_IDS.map((k) => [k, list.filter((x) => x.stamp === k).length])),
-    mine: STAMP_IDS.filter((k) => dev && list.some((x) => x.stamp === k && x.dev === dev)),
-  });
+  const stampName = (v) => String(v || "").replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim().replace(/\s*(先生|せんせい|センセイ)$/, "").trim().slice(0, 12);
+  const stampsOut = (list, dev) => {
+    const rows = list.filter((x) => STAMP_IDS.includes(x.stamp)).sort((a, b) => a.at - b.at);
+    const by = new Map();
+    rows.forEach((x) => { const w = x.name || ""; if (!by.has(w)) by.set(w, []); by.get(w).push(x.stamp); });
+    return {
+      counts: Object.fromEntries(STAMP_IDS.map((k) => [k, rows.filter((x) => x.stamp === k).length])),
+      mine: rows.filter((x) => dev && x.dev === dev).map((x) => x.stamp),
+      who: [...by].map(([who, stamps]) => ({ who, stamps })),
+    };
+  };
+  // 生徒用：[{ stamp, who, at }]（押した順。端末の印は返さない）
+  const stampList = (list) => list.filter((x) => STAMP_IDS.includes(x.stamp)).sort((a, b) => a.at - b.at).map((x) => ({ stamp: x.stamp, who: x.name || "", at: x.at }));
 
   const demo = {
     async login(p) {
@@ -253,7 +262,7 @@
         out.mine = {
           vote: v ? v.stance : null, pre: mineOf(w("pre")), post: mineOf(w("post")),
           team: teamOf(split, seatOf(db, se, st)),
-          stamps: stampsOut(db.stamps.filter((x) => x.session === se.code && x.student === st)).counts,
+          stamps: stampList(db.stamps.filter((x) => x.session === se.code && x.student === st)),
         };
       }
       return out;
@@ -374,11 +383,22 @@
       const db = load();
       const se = sess(db, s);
       demoRole(se, key);
+      const name = stampName(p.name);
+      const mineHere = (x) => x.session === se.code && x.dev === p.dev;
+      if (p.rename === true) {
+        if (!name) err("スタンプに出すお名前を入れてください");
+        let renamed = 0;
+        db.stamps.forEach((x) => { if (mineHere(x)) { x.name = name; renamed++; } });
+        save(db);
+        return { ok: true, name, renamed };
+      }
+      if (p.on !== false && !name) err("スタンプに出すお名前を入れてください");
       if (!STAMP_IDS.includes(p.stamp)) err("スタンプの種類が正しくありません");
       if (!db.writings.some((x) => x.session === se.code && x.student === p.student)) err("この生徒の英文が見つかりません", 404);
       const same = (x) => x.session === se.code && x.student === p.student && x.dev === p.dev && x.stamp === p.stamp;
       if (p.on === false) db.stamps = db.stamps.filter((x) => !same(x));
-      else if (!db.stamps.some(same)) db.stamps.push({ session: se.code, student: p.student, dev: p.dev, stamp: p.stamp, at: Date.now() });
+      else if (!db.stamps.some(same)) db.stamps.push({ session: se.code, student: p.student, dev: p.dev, stamp: p.stamp, name, at: Date.now() });
+      if (name) db.stamps.forEach((x) => { if (mineHere(x)) x.name = name; });
       save(db);
       return { ok: true, student: p.student, ...stampsOut(db.stamps.filter((x) => x.session === se.code && x.student === p.student), p.dev) };
     },
@@ -507,7 +527,9 @@
       db.votes.filter((x) => x.session === se.code).forEach((v) => Object.assign(get(v.student), { vote: v.stance, grp: v.grp }));
       db.writings.filter((x) => x.session === se.code).forEach((w) => { get(w.student)[w.round] = w; if (w.grp) get(w.student).grp = w.grp; });
       db.members.filter((x) => x.session === se.code).forEach((m) => { const t = teamOf(se.teams, m.seat); if (t) Object.assign(get(m.student), { grp: t.grp, side: t.side === "yes" ? "Yes側" : "No側" }); });
-      const stampN = (st, k) => db.stamps.filter((x) => x.session === se.code && x.student === st && x.stamp === k).length;
+      const stampsOfSt = (st) => db.stamps.filter((x) => x.session === se.code && x.student === st);
+      const stampN = (st, k) => stampsOfSt(st).filter((x) => x.stamp === k).length;
+      const whoText = (st) => stampsOut(stampsOfSt(st)).who.map((x) => `${x.who}先生（${x.stamps.map((k) => (C.STAMPS.find((y) => y.id === k) || {}).ja).join("・")}）`).join("／");
       const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
       const part = (w) => {
         if (!w) return Array(8).fill("");
@@ -515,8 +537,8 @@
         return [w.stance, w.words, w.body, f.comment || "", (f.questions || []).map((q) => `${q.en}（${q.ja}）`).join(" / "), f.corrected || "", w.translation || "", w.flag || ""];
       };
       const cols = (p) => [`${p}の立場`, `${p}の語数`, `${p}の英文`, `${p}のAIコメント`, `${p}のAIの問いかけ`, `${p}の添削後`, `${p}の和訳(AI)`, `${p}のフラグ`];
-      const head = ["組-番号", "グループ", "ディベートの立場", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り", ...(C.STAMPS || []).map((x) => `スタンプ「${x.ja}」`)];
-      const rows = [...people.values()].map((x) => [x.student, x.grp, x.side, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || "", ...STAMP_IDS.map((k) => stampN(x.student, k))].map(esc).join(","));
+      const head = ["組-番号", "グループ", "ディベートの立場", ...cols("読む前"), "最初の考え(投票)", ...cols("授業後"), "振り返り", ...(C.STAMPS || []).map((x) => `スタンプ「${x.ja}」`), "スタンプを押した先生"];
+      const rows = [...people.values()].map((x) => [x.student, x.grp, x.side, ...part(x.pre), x.vote, ...part(x.post), (x.post && x.post.reflection) || "", ...STAMP_IDS.map((k) => stampN(x.student, k)), whoText(x.student)].map(esc).join(","));
       return new Blob(["﻿" + [head.map(esc).join(","), ...rows].join("\r\n")], { type: "text/csv" });
     },
     // モニターの見た目確認用：28人分のサンプル（本番のトピックは読む前と後、各 Part のディベートは1回だけ）を投入。
@@ -574,8 +596,8 @@
           if (n % 3 !== 2) post.reflection = REFL[n % REFL.length];
           // 先生からのスタンプ（2人の先生が押したことにする。まだもらっていない生徒もいる）
           (C.STAMPS || []).forEach((x, k) => {
-            if ((n + k) % 3 === 0) db.stamps.push({ session: se.code, student, dev: "demo-teacher-1", stamp: x.id, at: base });
-            if ((n + k) % 5 === 1) db.stamps.push({ session: se.code, student, dev: "demo-teacher-2", stamp: x.id, at: base });
+            if ((n + k) % 3 === 0) db.stamps.push({ session: se.code, student, dev: "demo-teacher-1", stamp: x.id, name: "山本", at: base + 38 * 60000 + n * 1000 + k });
+            if ((n + k) % 5 === 1) db.stamps.push({ session: se.code, student, dev: "demo-teacher-2", stamp: x.id, name: "佐藤", at: base + 39 * 60000 + n * 1000 + k });
           });
         }
       }
