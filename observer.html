@@ -395,8 +395,8 @@
         return `<button type="button" class="stp ${on ? "on" : ""}" style="--stamp-ink:${STAMP.ink[k.id]}" data-student="${esc(st)}" data-stamp="${k.id}" aria-pressed="${on}" title="${on ? "もう一度押すと取り消します" : "押すと生徒に届きます"}">${pic}${esc(k.ja)}<b>${n || ""}</b></button>`;
       }).join("")
       + (stampSum(st) ? "" : `<span class="none">まだスタンプがありません</span>`)
-      // だれが押したか（押した順）
-      + (who.length ? `<div class="who-line">${who.map((w) => `<span>${esc(w.who || "")}先生${w.stamps.map((id) => STAMP.html(id, { mini: true, ink: false, size: 18, seed: st + id + w.who, title: "" })).join("")}</span>`).join("")}</div>` : "");
+      // だれが押したか（押した順）。先生用の一覧だけに出す（参観者用ページには出さない。先生の指示。2026-11-21）
+      + (S.role === "teacher" && who.length ?`<div class="who-line">${who.map((w) => `<span>${esc(w.who || "")}先生${w.stamps.map((id) => STAMP.html(id, { mini: true, ink: false, size: 18, seed: st + id + w.who, title: "" })).join("")}</span>`).join("")}</div>` : "");
   }
   $("#list").addEventListener("click", async (e) => {
     const b = e.target.closest(".stp");
@@ -418,7 +418,7 @@
     try {
       const res = await API.stamp(S.s, S.key, { student: st, stamp: k, on, dev: DEV, name: NAME });
       D.stamps[st] = { counts: res.counts, mine: res.mine, who: res.who || [] };
-      if (on) toast(`${STAMPS.find((x) => x.id === k).icon} ${st.replace("-", "組")}番に「${NAME}先生から」で届けました`);
+      if (on) toast(`${STAMPS.find((x) => x.id === k).icon} ${st.replace("-", "組")}番に届けました`);
     } catch (err) {
       if (before) D.stamps[st] = before; else delete D.stamps[st];
       toast(err.message, true);
